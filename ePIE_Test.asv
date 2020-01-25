@@ -2,6 +2,8 @@
 % reference: Maiden, A. M., & Rodenburg, J. M. (2009).
 % An improved ptychographical phase retrieval algorithm for
 % diffractive imaging.?Ultramicroscopy,?109(10), 1256-1262.
+addpath(genpath(¡®path_to_MIP.m¡¯))
+
 
 addpath('E:\matlab\WZhu_toolbox');
 %% parameters setting
@@ -13,7 +15,7 @@ object_delta =  object_domian/Nobj; % grid size in object plane
 dis_obj = 500; % distance from pupil to object plane, unit:um
 dis_det = 2000; % distance from object plane to detector plane, unit: um
 alpha = 1; % weight factor
-beta = 1; % weight factor
+beta = 0.1; % weight factor
 object_amp = mat2gray(imread('cameraman.tif'))*0.8+0.2; % object amplitude
 object_pha=mat2gray(imread('pears.png'));
 object_pha= object_pha(1:Nobj,1:Nobj,1);
@@ -46,7 +48,7 @@ for i = 1:scanSteps^2
     scanVisualization = scanVisualization + circshift(probe_amp,sxy(i,:));
 end
 
-simDiff = 1; % simulate diffraction patterns, 1 for yes, 0 for no
+simDiff = 0; % simulate diffraction patterns, 1 for yes, 0 for no
 %% diffracted pattern simulation using FFT
 if simDiff ==1
     Eps=AngSpec(Ep,lambda_um/1000,dis_obj/1000,object_delta/1000); %propagate the probe to the object plane
@@ -70,7 +72,7 @@ for k = 1:iteration
     gamma = sum(temp1(mask==1))/sum(temp2(mask==1));
     temp1 = abs(Eo - gamma*Eobj).^2;
     temp2 = abs(Eo).^2;
-    Error_sim = sum(temp1(mask==1))/sum(temp2(mask==1));
+    Error_sim = sum(temp1(mask==1))/sum(temp2(mask==1))
     Errors(k) = Error_sim;
     temp = 0;
     for j = 1:scanSteps^2
@@ -78,7 +80,7 @@ for k = 1:iteration
 %         if mod(k,2)==0
 %             i=scanSteps^2-j+1;
 %         end
-        phi = Eobj.*circshift(Epro,sxy(i,:)); % exit wave
+        phi = Eobj.*circshift(Ep,sxy(i,:)); % exit wave
 %                      phi = phi.*mask2;
         Phi = fftshift(fft2(phi));
         Phis = sqrt(Id(:,:,i)).*exp(1i*atan2(imag(Phi),real(Phi))); % updated wave on detector
@@ -103,12 +105,12 @@ for k = 1:iteration
     Eobj_pha(scanVisualization==0) =NaN;
     Epro_amp(scanVisualization==0) =NaN;
     Epro_pha(scanVisualization==0) =NaN;
-    figure(3),subplot(221),imagesc(Eobj_amp),axis equal off tight;title('Sample amplitude');
-    figure(3),subplot(222),imagesc(Eobj_pha),axis equal off tight;title('Sample phase');
-    figure(3),subplot(223),imagesc(Epro_amp),axis equal off tight;title('Probe amplitude');
-    figure(3),subplot(224),imagesc(Epro_pha),axis equal off tight;title('probe phase');drawnow;
+    figure(2),imshow(Eobj_amp,[]),axis equal off tight;drawnow;
+    figure(3),imshow(Eobj_pha,[]),axis equal off tight;drawnow;
+%     figure(4),imagesc(Epro_amp),axis equal off tight;drawnow;
+%     figure(5),imagesc(Epro_pha),axis equal off tight;drawnow;
     fprintf('%d iterations finished\n',k);
-    if k>1&&abs(Errors2(k)-Errors2(k-1))<1e-6
+    if k>1&&abs(Errors2(k)-Errors2(k-1))<1e-5
         break;
     end
 end
