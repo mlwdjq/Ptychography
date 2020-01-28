@@ -13,7 +13,7 @@ object_delta =  object_domian/Nobj; % grid size in object plane
 dis_obj = 500; % distance from pupil to object plane, unit:um
 dis_det = 2000; % distance from object plane to detector plane, unit: um
 alpha = 1; % weight factor
-beta = 1; % weight factor
+beta = 0.1; % weight factor
 object_amp = mat2gray(imread('cameraman.tif'))*0.8+0.2; % object amplitude
 object_pha=mat2gray(imread('pears.png'));
 object_pha= object_pha(1:Nobj,1:Nobj,1);
@@ -87,8 +87,10 @@ for k = 1:iteration
 %                      figure(2),imagesc(abs(phis)),axis equal off tight;pause(0.1)
         maxProbes = max(abs(Epro(:)).^2);
         maxObjects = max(abs(Eobj(:)).^2);
+        Eobj0=Eobj;
         Eobj = Eobj + alpha*(conj(circshift(Epro,sxy(i,:)))/maxProbes.*(phis-phi));
-        Epro = Epro + beta*(conj(circshift(Eobj,-sxy(i,:)))/maxObjects.*(phis-phi));
+        
+        Epro = Epro + beta*(conj(circshift(Eobj0,-sxy(i,:)*0))/maxObjects.*(phis-phi));
     end
     
     % error evaluation
