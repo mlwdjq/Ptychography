@@ -1,0 +1,10 @@
+function [exitWaveNew,detectorWave] = UpdateExitWave(exitWave,sqrtInt,propagator,dx,wavelength,z,H)
+if nargin ==7
+    detectorWave = postPropagate (exitWave,propagator,H);Propagate(exitWave,propagator,dx,wavelength,z);
+    correctedWave = sqrtInt.*detectorWave./(abs(detectorWave)+eps);
+    exitWaveNew = Propagate(correctedWave,propagator,dx,wavelength,-z);
+else
+    detectorWave = Propagate(exitWave,propagator,dx,wavelength,z);
+    correctedWave = sqrtInt.*detectorWave./(abs(detectorWave)+eps);
+    exitWaveNew = Propagate(correctedWave,propagator,dx,wavelength,-z);
+end

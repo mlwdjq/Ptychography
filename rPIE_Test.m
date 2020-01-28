@@ -9,8 +9,6 @@ lambda_um =13.5e-3; % wavelength
 N = 156; % grid number of calculation box in object plane
 dc_um = 8; % detector pixel pitch
 propagator = 'angular spectrum';
-alpha = 1; % weight factor for updating object
-beta = 1; % weight factor for updating probe
 z_mm = 200;
 z_um = z_mm*1000; % distance from object plane to detector plane
 iteration = 1000; % maximum iteration times
@@ -63,6 +61,7 @@ switch probeType
         probe = Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
             do_um,lambda_um,dp_um);
 end
+probe = single(probe);
 if samplingFactor_obj>1
     fprintf('Please adjust configurations for propagation sampling\n');
     return;
@@ -84,14 +83,20 @@ object_pha= object_pha(1:K,1:L,1);
 object_pha = (object_pha-0.5)*2*pi; % object phase
 object = object_amp.*exp(1i*object_pha);
 % figure(2),imagesc(xo_mm,yo_mm,abs(object_amp)),xlabel('mm'),ylabel('mm');axis tight equal
-
+object = single(object);
+%% prepropagate (calculate frequency responds function)
+preShift = 1;
+H = prePropagate (probe,propagator,do_um,lambda_um,z_um,preShift);
+Hm = prePropagate (probe,propagator,do_um,lambda_um,-z_um,preShift);
 %% simulate diffracted patterns
 Em = zeros(N,N,scanSteps^2);
 for j = 1:scanSteps^2
     reconBox = object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
     exitWave = reconBox.*probe;
-    Em(:,:,j) = Propagate (exitWave ,propagator,do_um,lambda_um,z_um);
-    measurements = abs(Em).^2;
+%     Em(:,:,j) = Propagate (exitWave ,propagator,do_um,lambda_um,z_um);
+    Em(:,:,j) = postPropagate (exitWave,propagator,H,preShift);
+    sqrtInt = single(abs(Em));
+    measurements = sqrtInt.^2;
 %     figure(2),imagesc(xc_mm,xc_mm,measurements(:,:,j)),xlabel('mm'),ylabel('mm');
 %     axis tight equal;drawnow;
 end
@@ -102,13 +107,15 @@ object_sim = object;
 probe_sim = probe;
 
 %% define initial guesses for probe and object
-object = ones(K,L);
+object = single(ones(K,L));
 % probe = ones(N);
 % probe = pinhole(round(Rprobe_um/do_um),N,N);
 
 %% reconstruction
 method = 'rPIE';
 errors = zeros(iteration,1);
+alpha = 1; % weight factor for updating object
+beta = 0.1; % weight factor for updating probe
 gamma = 0.2; % weight factor for rPIE, 1 for ePIE
 delta = 0.1; % weight factor for RAAR, 1 for DM
 for i = 1:iteration % doing iteration
@@ -120,15 +127,15 @@ for i = 1:iteration % doing iteration
                 % figure(2),imagesc(xo_mm,yo_mm,abs(object)),axis tight equal ;
                 % title('object amplitude');drawnow;
                 exitWave = reconBox.*probe;
-                [exitWaveNew,detectorWave] = UpdateExitWave(exitWave,measurements(:,:,j),...
-                    propagator,do_um,lambda_um,z_um);
+                [exitWaveNew,detectorWave] = UpdateExitWave(exitWave,sqrtInt(:,:,j),...
+                    propagator,H,Hm,preShift);
                 tempProbe = probe;
                 denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
                 newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
                 denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
                 probe = probe + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
                 object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
-                tempError = tempError + abs(sqrt(measurements(:,:,j))-abs(detectorWave)).^2;
+                tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
             end
         case 'RAAR'
             if i==1 % initial exitWaves
@@ -141,9 +148,9 @@ for i = 1:iteration % doing iteration
             parfor j =1:scanSteps^2 % batch scanning solution
                 reconBox = object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
                 waveToPropagate = 2*probe.*reconBox-exitWaves(:,:,j);
-                [exitWaveNew,detectorWave] = UpdateExitWave(waveToPropagate,measurements(:,:,j),...
-                    propagator,do_um,lambda_um,z_um);
-                tempError = tempError + abs(sqrt(measurements(:,:,j))-abs(detectorWave)).^2;
+                [exitWaveNew,detectorWave] = UpdateExitWave(waveToPropagate,sqrtInt(:,:,j),...
+                    propagator,H,Hm,preShift);
+                tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
                 exitWaves(:,:,j) = delta*(exitWaves(:,:,j) + exitWaveNew) +(1-2*delta)*probe.*reconBox;
             end
             probe = BatchProbeUpdate(exitWaves,probe,object,Rpix,beta);
@@ -162,7 +169,7 @@ for i = 1:iteration % doing iteration
     xlabel('mm'),  ylabel('mm')
     subplot(222),imagesc(xo_mm,yo_mm,Eobj_pha),axis tight equal ;title('Object phase');xlabel('mm'),  ylabel('mm')
     subplot(223),imagesc(xp_mm,xp_mm,Epro_amp),axis tight equal ;title('Probe amplitude');xlabel('mm'),  ylabel('mm')
-    subplot(224),imagesc(xp_mm,xp_mm,Epro_pha),axis tight equal ;title('probe phase');xlabel('mm'),  ylabel('mm')
+    subplot(224),imagesc(xp_mm,xp_mm,Epro_pha),axis tight equal ;title('Probe phase');xlabel('mm'),  ylabel('mm')
     drawnow;
     fprintf('%d iterations finished,residual error: %0.5f\n',i,errors(i));
     if i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<1e-4)
