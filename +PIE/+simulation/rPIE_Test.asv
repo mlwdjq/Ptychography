@@ -26,10 +26,15 @@ scanSteps = 4; % scanning steps scanSteps*scanSteps
 Rmin_um = 0; % minimum shift
 Rmax_um = 400; % maximum shift
 [Rx_um,Ry_um] = meshgrid(linspace(Rmin_um,Rmax_um,scanSteps));
-Rx_um(2:2:end,:) =fliplr(Rx_um(2:2:end,:));
-Rx_um=Rx_um';
-Ry_um=Ry_um';
+stepByStepScan = 0;
+if stepByStepScan == 1
+    Rx_um(2:2:end,:) =fliplr(Rx_um(2:2:end,:));
+    Rx_um=Rx_um';
+    Ry_um=Ry_um';
+end
 Rpix = round(([Ry_um(:),Rx_um(:)]-Rmin_um)/do_um);
+Rxpix =round((Rx_um-Rmin_um)/do_um);
+Rypix =round((Ry_um-Rmin_um)/do_um);
 K = max(Rpix(:,1))-min(Rpix(:,1))+N;
 L = max(Rpix(:,2))-min(Rpix(:,2))+N; % size of object [K,L]
 xp_um = [1:N]*do_um; % object coordinates
@@ -54,18 +59,24 @@ switch probeType
         n2 = n2-N/2-1;
         probe = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
             exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2)))));
+%         probes = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
+%             exp(-1i*pi*df_um*dc_um^2/lambda_um/(z_um+10000)^2*(n1.^2+n2.^2)))));
     case 'plane'
         Rprobe_um = do_um*N*0.15;
         dp_um = 50000; % propagation distance
         samplingFactor_obj = lambda_um.*dp_um/(N*do_um*do_um);
         probe = Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
             do_um,lambda_um,dp_um);
+    case 'aperture'
+        Rprobe_um = do_um*N*0.15;
+        probe = pinhole(round(2*Rprobe_um/do_um),N,N);
 end
+probe = single(probe);
 if samplingFactor_obj>1
     fprintf('Please adjust configurations for propagation sampling\n');
     return;
 end
-overlap = overlapRatio(Rprobe_um,Rmax_um/scanSteps); % overlap ratio of two circles
+overlap = PIE.utils.overlapRatio(Rprobe_um,Rmax_um/scanSteps); % overlap ratio of two circles
 if overlap<0.6 % check overlap
     fprintf('Overlap ratio(%0.1f%%) is less than 60%%. Please adjust configurations\n',overlap*100);
     return;
@@ -76,28 +87,29 @@ end
 
 %% initial object
 object_amp = mat2gray(imread('cameraman.tif'))*0.8+0.2; % object amplitude
+% object_amp = ones(K,L);
 object_amp = object_amp(1:K,1:L);
 object_pha=mat2gray(imread('pears.png'));
 object_pha= object_pha(1:K,1:L,1);
 object_pha = (object_pha-0.5)*2*pi; % object phase
 object = object_amp.*exp(1i*object_pha);
 % figure(2),imagesc(xo_mm,yo_mm,abs(object_amp)),xlabel('mm'),ylabel('mm');axis tight equal
-
+object = single(object);
 %% prepropagate (calculate frequency responds function)
 preShift = 1;
-H = prePropagate (probe,propagator,do_um,lambda_um,z_um,preShift);
-Hm = prePropagate (probe,propagator,do_um,lambda_um,-z_um,preShift);
+H = PIE.utils.prePropagate (probe,propagator,do_um,lambda_um,z_um,preShift);
+Hm = PIE.utils.prePropagate (probe,propagator,do_um,lambda_um,-z_um,preShift);
 %% simulate diffracted patterns
 Em = zeros(N,N,scanSteps^2);
 for j = 1:scanSteps^2
     reconBox = object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
     exitWave = reconBox.*probe;
-%     Em(:,:,j) = Propagate (exitWave ,propagator,do_um,lambda_um,z_um);
-    Em(:,:,j) = postPropagate (exitWave,propagator,H,preShift);
-    sqrtInt = abs(Em);
+    %     Em(:,:,j) = Propagate (exitWave ,propagator,do_um,lambda_um,z_um);
+    Em(:,:,j) = PIE.utils.postPropagate (exitWave,propagator,H,preShift);
+    sqrtInt = single(abs(Em));
     measurements = sqrtInt.^2;
-    figure(2),imagesc(xc_mm,xc_mm,measurements(:,:,j)),xlabel('mm'),ylabel('mm');
-    axis tight equal;drawnow;
+    %     figure(2),imagesc(xc_mm,xc_mm,measurements(:,:,j)),xlabel('mm'),ylabel('mm');
+    %     axis tight equal;drawnow;
 end
 Is = sum(measurements,3); % total intensity on detector
 fprintf('diffraction simulation finished\n');
@@ -106,22 +118,34 @@ object_sim = object;
 probe_sim = probe;
 
 %% define initial guesses for probe and object
-object = ones(K,L);
+object = single(ones(K,L));
 % probe = ones(N);
 % probe = pinhole(round(Rprobe_um/do_um),N,N);
 
 %% reconstruction
-method = 'RAAR';
+method = 'rPIE';
 errors = zeros(iteration,1);
 alpha = 1; % weight factor for updating object
-beta = 1; % weight factor for updating probe
+beta = 0.1; % weight factor for updating probe
 gamma = 0.2; % weight factor for rPIE, 1 for ePIE
 delta = 0.1; % weight factor for RAAR, 1 for DM
+if strcmp(method,'WDD')
+    I_set_u_R = reshape(measurements,N,N,scanSteps,scanSteps);
+    I_set_R_u= permute(I_set_u_R,[3, 4, 1, 2]); 
+    G_set_u_U = single(zeros(N,N,scanSteps,scanSteps));
+    G_set_U_u = single(zeros(scanSteps,scanSteps,N,N));
+    H_set_r_U = G_set_u_U;
+    H_set_U_r = G_set_U_u;
+    L_set_r_R = G_set_u_U;
+    L_set_R_r = G_set_U_u;
+    Xa = G_set_u_U;
+    Q = G_set_u_U;
+end
 for i = 1:iteration % doing iteration
     tempError = 0;
     switch method
-        case 'rPIE'
-            for j =1:scanSteps^2 % scanning solution
+        case 'rPIE' % scanning solution
+            for j =1:scanSteps^2
                 reconBox = object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
                 % figure(2),imagesc(xo_mm,yo_mm,abs(object)),axis tight equal ;
                 % title('object amplitude');drawnow;
@@ -136,7 +160,7 @@ for i = 1:iteration % doing iteration
                 object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
                 tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
             end
-        case 'RAAR'
+        case 'RAAR' % batch scanning solution
             if i==1 % initial exitWaves
                 exitWaves = zeros(N,N,scanSteps^2);
                 for j =1:scanSteps^2
@@ -144,7 +168,7 @@ for i = 1:iteration % doing iteration
                     exitWaves(:,:,j) = probe.*reconBox;
                 end
             end
-            parfor j =1:scanSteps^2 % batch scanning solution
+            parfor j =1:scanSteps^2
                 reconBox = object(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
                 waveToPropagate = 2*probe.*reconBox-exitWaves(:,:,j);
                 [exitWaveNew,detectorWave] = UpdateExitWave(waveToPropagate,sqrtInt(:,:,j),...
@@ -154,6 +178,50 @@ for i = 1:iteration % doing iteration
             end
             probe = BatchProbeUpdate(exitWaves,probe,object,Rpix,beta);
             object = BatchObjectUpdate(exitWaves,probe,object,Rpix,alpha);
+        case 'WDD' % Wigner distribution deconvolution 
+            % I_set(u,R), G_set(u,U), H_set(r,U), L_set(r,R)
+            for m = 1:N
+                for n = 1:N
+                    G_set_U_u(:,:,m,n) = fftshift(fft2(fftshift(I_set_R_u(:,:,m,n)))); % from R to U
+                end
+            end
+            G_set_u_U = ipermute(G_set_U_u,[3 4 1 2]);
+            for m = 1:scanSteps
+                for n = 1:scanSteps
+                    L_set_r_R(:,:,m,n) = ifftshift(ifft2(ifftshift(I_set_u_R(:,:,m,n)))); % from u to r
+                    H_set_r_U(:,:,m,n) = ifftshift(ifft2(ifftshift(G_set_u_U(:,:,m,n)))); % from u to r
+                end
+            end
+            L_set_R_r = permute(L_set_r_R,[3 4 1 2]);
+            H_set_U_r = permute(H_set_r_U,[3 4 1 2]);
+            for m = 1:scanSteps
+                for n = 1:scanSteps
+                    temp1 = fftshift(fft2(fftshift(object(Rypix(m,n)+[1:N],Rxpix(m,n)+[1:N])))); % from R to U
+                    temp0 = fftshift(fft2(fftshift(object(Rypix(round((scanSteps+1)/2),...
+                        round((scanSteps+1)/2))+[1:N],Rxpix(round((scanSteps+1)/2),round((scanSteps+1)/2))+[1:N]))));
+                    Xa(:,:,m,n) = ifftshift(ifft2(ifftshift(conj(temp1).*temp0)));%% may change the conj
+                end
+            end
+            Xq = conj(Xa).*H_set_r_U./(abs(Xa).^2+eps);
+            for m = 1:scanSteps
+                for n = 1:scanSteps
+                    Q(:,:,m,n) = fftshift(fft2(fftshift(Xq(:,:,m,n))));%% may change the conj
+                end
+            end
+            for m = 1:scanSteps
+                for n = 1:scanSteps
+                    Qs(m,n) =Q(N/scanSteps*(m-1)+1,N/scanSteps*(n-1)+1,m,n);%% may change the conj
+                end
+            end
+            q = ifftshift(ifft2(ifftshift(Qs)));
+            q_amp =abs(q);
+            q_pha =atan2(imag(q),real(q));
+            imagesc(q_amp);colorbar;
+%             subplot(122),imagesc(q_pha);
+%             Probe = fftshift(fft2(fftshift(probe)));
+%             temp = permute(G_set_u_U,[1,2,3,4]);
+%             imagesc(abs(temp(:,:,10,10)))
+            break;
     end
     
     % error evaluation
@@ -168,7 +236,7 @@ for i = 1:iteration % doing iteration
     xlabel('mm'),  ylabel('mm')
     subplot(222),imagesc(xo_mm,yo_mm,Eobj_pha),axis tight equal ;title('Object phase');xlabel('mm'),  ylabel('mm')
     subplot(223),imagesc(xp_mm,xp_mm,Epro_amp),axis tight equal ;title('Probe amplitude');xlabel('mm'),  ylabel('mm')
-    subplot(224),imagesc(xp_mm,xp_mm,Epro_pha),axis tight equal ;title('probe phase');xlabel('mm'),  ylabel('mm')
+    subplot(224),imagesc(xp_mm,xp_mm,Epro_pha),axis tight equal ;title('Probe phase');xlabel('mm'),  ylabel('mm')
     drawnow;
     fprintf('%d iterations finished,residual error: %0.5f\n',i,errors(i));
     if i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<1e-4)
