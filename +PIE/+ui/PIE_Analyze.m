@@ -22,9 +22,10 @@ classdef PIE_Analyze < mic.Base
         U8STATE_INITIAL             = 1
         U8STATE_DATA_LOADED         = 2
         U8STATE_PHASE_PROCESSED     = 3
-        U8STATE_RECONSTRUCTED       = 4
+        U8STATE_GUESS_PROCESSED     = 4
+        U8STATE_RECONSTRUCTED       = 5
         
-        U8MAXSTATES         = 4
+        U8MAXSTATES         = 5
         
         ceValidForAnalysis = {'Image capture'}; % list of valid scan types
         
@@ -72,6 +73,8 @@ classdef PIE_Analyze < mic.Base
         dResult
         dProbe
         dObject
+        dProbeGuess
+        dObjectGuess
         
         % Shear guides
         dBeamWidthEstPx = 1
@@ -194,6 +197,7 @@ classdef PIE_Analyze < mic.Base
         uibLoadObject
         uibGenProbeObject
         uieRprobe
+        uicbGuess
         
         % Controls:Data:SimStochastics
         uibCustomSim
@@ -370,7 +374,7 @@ classdef PIE_Analyze < mic.Base
             
             % Controls:Data:simulation
             this.uieRes         = mic.ui.common.Edit('cLabel', 'Res', 'cType', 'd');
-            this.uiez1          = mic.ui.common.Edit('cLabel', 'Z_1 (um)', 'cType', 'd');
+            this.uiez1          = mic.ui.common.Edit('cLabel', 'Z_1 (mm)', 'cType', 'd');
             this.uieNp          = mic.ui.common.Edit('cLabel', 'N Phtn', 'cType', 'd');
             this.uieZrn         = mic.ui.common.Edit('cLabel', 'Zernike couples vector [N X 2]', 'cType', 'c','fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             
@@ -389,7 +393,7 @@ classdef PIE_Analyze < mic.Base
                 'dHeight', 15, ...
                 'dWidth', 455);
             
-            this.uiez1.set(1);
+            this.uiez1.set(-50);
             this.uieNp.set(30000);
             this.uieRes.set(256);
             this.uieScanSteps.set(4);
@@ -400,15 +404,17 @@ classdef PIE_Analyze < mic.Base
             % Controls:Data:Probe and object
             this.uipProbeType     = mic.ui.common.Popup('cLabel', 'Probe type', 'ceOptions', {'Defocus wave','Plane wave'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vaccum','Cameraman'}, ...
+            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vacuum','Cameraman'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uipPropagator     = mic.ui.common.Popup('cLabel', 'Propagator', 'ceOptions', {'fourier','angular spectrum','fresnel'}, ...
+            this.uipPropagator     = mic.ui.common.Popup('cLabel', 'Propagator', 'ceOptions', {'angular spectrum','fourier','fresnel'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibLoadProbe    = mic.ui.common.Button('cText', 'Load probe', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibLoadObject    = mic.ui.common.Button('cText', 'Load object', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibGenProbeObject   = mic.ui.common.Button('cText', 'Generate', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieRprobe = mic.ui.common.Edit('cLabel', 'Probe radius on det (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieRprobe.set(this.uieDetSize.get()/2); 
+            this.uieRprobe.set(this.uieDetSize.get()/4); 
+            this.uicbGuess = mic.ui.common.Checkbox('cLabel', 'Initial guess',  'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uicbGuess.set(true);
             
             % Controls:Data:Sim stochastics
             this.uibCustomSim = mic.ui.common.Button('cText', 'Custom Sim', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -556,28 +562,6 @@ classdef PIE_Analyze < mic.Base
                     end
                     
                 case this.uibLoadMask
-                    %                     cDataDir = fullfile(this.cAppPath, '..', '..', '..', 'Data');
-                    %                     [fn,pn]=uigetfile({'*.mat;*.SPE','LSI int bundle (*.mat) or WinView (*.SPE)'},'Loading',cDataDir);
-                    %                     fileformat=fn(end-2:end);
-                    %                     filename= strcat(pn,fn);
-                    %                     switch fileformat
-                    %                         case 'SPE'
-                    %                             ceInts=lsianalyze.utils.speread(filename);
-                    %                             Binning=this.uieBinning.get();
-                    %                             dGlobalRot = this.uieGlobalRot.get();
-                    %                             Mask=bin2(ceInts{1},Binning,Binning);
-                    %                             if (dGlobalRot ~= 0)
-                    %                                 Mask = imrotate(Mask,dGlobalRot,'crop');
-                    %                             end
-                    %                             th=20;
-                    %                             Mask(Mask<th)=0;
-                    %                             Mask(Mask>=th)=1;
-                    %                             this.handleLoadData(ceInts, {});
-                    %
-                    %                         case 'mat'
-                    %                             load(filename);
-                    %                             this.handleLoadData({dImg}, {stLog});
-                    %                     end
                     
                     
                 case {this.uieZrn, this.uiePhaseStepsTD, this.uieNonlinearity}
@@ -597,8 +581,10 @@ classdef PIE_Analyze < mic.Base
                     probeType = this.uipProbeType.getOptions{this.uipProbeType.getSelectedIndex()};
                     objectType = this.uipObjectType.getOptions{this.uipObjectType.getSelectedIndex()};
                     propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                    initialGuess = this.uicbGuess.get();
                     N           = this.uieRes.get();
-                    Rprobe_um   = this.uieRprobe.get()*1000;
+                    NA           = this.uieNA.get();
+                    Rc_um   = this.uieRprobe.get()*1000;
                     lambda_um   = this.uieLambda.get()/1000;
                     df_um       = this.uiez1.get()*1000;% negative sign corresponds convergent
                     z_um       = this.uiez2.get()*1000;
@@ -616,21 +602,26 @@ classdef PIE_Analyze < mic.Base
                         do_um = dc_um; % object pixel pitch
                     end
                  %% initial probe
-                    switch probeType
-                        case 'Defocus wave'
+                    if NA >0
                             samplingFactor_obj = lambda_um.*z_um/(N*dc_um*do_um);
-                            Rc_um = Rprobe_um/abs(df_um)*(z_um+df_um) ;
+                            Rc_um = (z_um+df_um)*tan(asin(NA));
+                            Rprobe_um = abs(df_um)*tan(asin(NA));
                             [n1,n2]=meshgrid(1:N);
                             n1 = n1-N/2-1;
                             n2 = n2-N/2-1;
                             probe = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
                                 exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2)))));
-                        case 'Plane wave'
+                    else
+                            Rprobe_um = Rc_um;
                             samplingFactor_obj = lambda_um.*abs(df_um)/(N*do_um*do_um);
-                            probe = Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
+                            probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
                                 do_um,lambda_um,abs(df_um));
                     end
-                    this.dProbe = single(probe);
+                    if initialGuess
+                        this.dProbeGuess = single(probe);
+                    else
+                        this.dProbe = single(probe);
+                    end
                     if samplingFactor_obj>1
                         fprintf('Please adjust configurations for propagation sampling\n');
                     end
@@ -643,7 +634,7 @@ classdef PIE_Analyze < mic.Base
                     L = round(scanRange_um/do_um)+N; % size of object [K,L]
                     switch objectType
                         case 'Vacuum'
-                            this.dObject = single(ones(K,L));
+                            object = single(ones(K,L));
                         case 'Cameraman'
                             I = single(flipud(imread('cameraman.tif')));
                             [m,n] = meshgrid(linspace(0,1,L),linspace(0,1,K));
@@ -658,16 +649,34 @@ classdef PIE_Analyze < mic.Base
                             object_pha=mat2gray(object_pha);
                             object_pha = (object_pha-0.5)*2*pi; % object phase
                             object = object_amp.*exp(1i*object_pha);
-                            this.dObject = single(object);
+                            
+                    end
+                    if initialGuess
+                        this.dObjectGuess = single(object);
+                    else
+                        this.dObject = single(object);
                     end
                     % Make phase tab active:
                     this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
                     
-                    % Plot wavefronts on phase tab
-                    this.replot(this.U8PROBEOBJECT, []);
                     
-                    % Set state:
-                    this.setState(this.U8STATE_PHASE_PROCESSED);
+                    if initialGuess
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8GUESS);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8GUESS, []);
+                        % Set state:
+                        this.setState(this.U8STATE_GUESS_PROCESSED);
+                    else
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8PROBEOBJECT, []);
+                        % Set state:
+                        this.setState(this.U8STATE_PHASE_PROCESSED);
+                    end
+                    
+                    
                     
                 case this.uieObsOffset
                     this.validateCouplesEditBox(src, '[]');
@@ -2138,25 +2147,51 @@ classdef PIE_Analyze < mic.Base
                         this.hsaInterferogram.setHoldState('off');
                         
                     case  this.U8PROBEOBJECT
+                        propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                        detSize_um  = this.uieDetSize.get()*1000; 
+                        N           = this.uieRes.get();
+                        dc_um       = detSize_um/N; % detector pixel pitch
+                        if strcmp(propagator,'fourier')
+                            do_um = lambda_um*z_um/N/dc_um;
+                        else
+                            do_um = dc_um; % object pixel pitch
+                        end
+                        [K,L] = size(this.dObject);
+                        xp_mm = [1:N]*do_um/1000; % object coordinates
+                        xo_mm = [1:L]*do_um/1000; % object coordinates
+                        yo_mm = [1:K]*do_um/1000; % object coordinates
                         
-                        
-                        imagesc(this.haProbeAmp, abs(this.dProbe));colorbar(this.haProbeAmp);axis(this.haProbeAmp,'xy');
-                        this.haProbeAmp.Title.String = 'Probe amplitude';
-                        imagesc(this.haProbePha, atan2(imag(this.dProbe),real(this.dProbe)));colorbar(this.haProbePha);axis(this.haProbePha,'xy');
-                        this.haProbePha.Title.String = 'Probe phase';
-                        imagesc(this.haObjectAmp, abs(this.dObject));colorbar(this.haObjectAmp);axis(this.haObjectAmp,'xy');
-                        this.haObjectAmp.Title.String = 'Object amplitude';
-                        imagesc(this.haObjectPha, atan2(imag(this.dObject),real(this.dObject)));colorbar(this.haObjectPha);axis(this.haObjectPha,'xy');
-                        this.haObjectPha.Title.String = 'Object phase';
+                        imagesc(this.haProbeAmp, xp_mm,xp_mm,abs(this.dProbe));colorbar(this.haProbeAmp);axis(this.haProbeAmp,'xy');
+                        this.haProbeAmp.Title.String = 'Probe amplitude';this.haProbeAmp.XLabel.String = 'mm';this.haProbeAmp.YLabel.String = 'mm';
+                        imagesc(this.haProbePha, xp_mm,xp_mm,atan2(imag(this.dProbe),real(this.dProbe)));colorbar(this.haProbePha);axis(this.haProbePha,'xy');
+                        this.haProbePha.Title.String = 'Probe phase';this.haProbePha.XLabel.String = 'mm';this.haProbePha.YLabel.String = 'mm';
+                        imagesc(this.haObjectAmp, xo_mm,yo_mm,abs(this.dObject));colorbar(this.haObjectAmp);axis(this.haObjectAmp,'xy');
+                        this.haObjectAmp.Title.String = 'Object amplitude';this.haObjectAmp.XLabel.String = 'mm';this.haObjectAmp.YLabel.String = 'mm';
+                        imagesc(this.haObjectPha, xo_mm,yo_mm,atan2(imag(this.dObject),real(this.dObject)));colorbar(this.haObjectPha);axis(this.haObjectPha,'xy');
+                        this.haObjectPha.Title.String = 'Object phase';this.haObjectPha.XLabel.String = 'mm';this.haObjectPha.YLabel.String = 'mm';
                     case  this.U8GUESS
-                        imagesc(this.haGuessProbeAmp, this.dWx);colorbar(this.haProbeAmp);axis(this.haProbeAmp,'xy');
-                        this.haProbeAmp.Title.String = 'X-shear phase';
-                        imagesc(this.haGuessProbePha, this.dWy);colorbar(this.haProbePha);axis(this.haProbePha,'xy');
-                        this.haProbePha.Title.String = 'Y-shear phase';
-                        imagesc(this.haGuessObjectAmp, this.dWxNoTilt);colorbar(this.haObjectAmp);axis(this.haObjectAmp,'xy');
-                        this.haObjectAmp.Title.String = 'X-shear phase with tilt removed';
-                        imagesc(this.haGuessObjectPha, this.dWyNoTilt);colorbar(this.haObjectPha);axis(this.haObjectPha,'xy');
-                        this.haObjectPha.Title.String = 'Y-shear phase with tilt removed';
+                        propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                        detSize_um  = this.uieDetSize.get()*1000; 
+                        N           = this.uieRes.get();
+                        dc_um       = detSize_um/N; % detector pixel pitch
+                        if strcmp(propagator,'fourier')
+                            do_um = lambda_um*z_um/N/dc_um;
+                        else
+                            do_um = dc_um; % object pixel pitch
+                        end
+                        [K,L] = size(this.dObject);
+                        xp_mm = [1:N]*do_um/1000; % object coordinates
+                        xo_mm = [1:L]*do_um/1000; % object coordinates
+                        yo_mm = [1:K]*do_um/1000; % object coordinates
+                        
+                        imagesc(this.haGuessProbeAmp, xp_mm,xp_mm,abs(this.dProbeGuess));colorbar(this.haGuessProbeAmp);axis(this.haGuessProbeAmp,'xy');
+                        this.haGuessProbeAmp.Title.String = 'Probe amplitude';this.haGuessProbeAmp.XLabel.String = 'mm';this.haGuessProbeAmp.YLabel.String = 'mm';
+                        imagesc(this.haGuessProbePha, xp_mm,xp_mm,atan2(imag(this.dProbeGuess),real(this.dProbeGuess)));colorbar(this.haGuessProbePha);axis(this.haGuessProbePha,'xy');
+                        this.haGuessProbePha.Title.String = 'Probe phase';this.haGuessProbePha.XLabel.String = 'mm';this.haGuessProbePha.YLabel.String = 'mm';
+                        imagesc(this.haGuessObjectAmp, xo_mm,yo_mm,abs(this.dObjectGuess));colorbar(this.haGuessObjectAmp);axis(this.haGuessObjectAmp,'xy');
+                        this.haGuessObjectAmp.Title.String = 'Object amplitude';this.haGuessObjectAmp.XLabel.String = 'mm';this.haGuessObjectAmp.YLabel.String = 'mm';
+                        imagesc(this.haGuessObjectPha, xo_mm,yo_mm,atan2(imag(this.dObjectGuess),real(this.dObjectGuess)));colorbar(this.haGuessObjectPha);axis(this.haGuessObjectPha,'xy');
+                        this.haGuessObjectPha.Title.String = 'Object phase';this.haGuessObjectPha.XLabel.String = 'mm';this.haGuessObjectPha.YLabel.String = 'mm';
                     case this.U8RECONSTRUCTION
                         u8ReconUnit               = this.uipReconUnit.getSelectedIndex();
                         switch u8ReconUnit
@@ -2376,38 +2411,38 @@ classdef PIE_Analyze < mic.Base
             uitPhase = this.uitgAxesDisplay.getTabByName('Probe and object');
             this.haProbeAmp = axes('Parent', uitPhase, ...
                 'Units', 'pixels', ...
-                'Position', [40, 500, 430, 360], ...
+                'Position', [60, 500, 400, 340], ...
                 'XTick', [], 'YTick', []);
             this.haProbePha = axes('Parent', uitPhase, ...
                 'Units', 'pixels', ...
-                'Position', [500, 500, 430, 360], ...
+                'Position', [520, 500, 400, 340], ...
                 'XTick', [], 'YTick', []);
             this.haObjectAmp = axes('Parent', uitPhase, ...
                 'Units', 'pixels', ...
-                'Position', [40, 50, 430, 360], ...
+                'Position', [60, 50, 400, 340], ...
                 'XTick', [], 'YTick', []);
             this.haObjectPha = axes('Parent', uitPhase, ...
                 'Units', 'pixels', ...
-                'Position', [500, 50, 430, 360], ...
+                'Position', [520, 50, 400, 340], ...
                 'XTick', [], 'YTick', []);
             
             % Axes:Initial guess
             uitGuess = this.uitgAxesDisplay.getTabByName('Initial guess');
             this.haGuessProbeAmp = axes('Parent', uitGuess, ...
                 'Units', 'pixels', ...
-                'Position', [40, 500, 430, 360], ...
+                'Position', [60, 500, 400, 340], ...
                 'XTick', [], 'YTick', []);
             this.haGuessProbePha = axes('Parent', uitGuess, ...
                 'Units', 'pixels', ...
-                'Position', [500, 500, 430, 360], ...
+                'Position', [520, 500, 400, 340], ...
                 'XTick', [], 'YTick', []);
             this.haGuessObjectAmp = axes('Parent', uitGuess, ...
                 'Units', 'pixels', ...
-                'Position', [40, 50, 430, 360], ...
+                'Position', [60, 50, 400, 340], ...
                 'XTick', [], 'YTick', []);
             this.haGuessObjectPha = axes('Parent', uitGuess, ...
                 'Units', 'pixels', ...
-                'Position', [500, 50, 430, 360], ...
+                'Position', [520, 50, 400, 340], ...
                 'XTick', [], 'YTick', []);
             
             % Axes:Reconstruction
@@ -2537,11 +2572,12 @@ classdef PIE_Analyze < mic.Base
             this.uipProbeType.build    (uitProbe, 10, 10+Offsetp, 100, 20);
             this.uipObjectType.build    (uitProbe, 250, 10+Offsetp, 100, 20);
             this.uieRprobe.build    (uitProbe, 120, 10+Offsetp, 100, 20);
-            this.uipPropagator.build    (uitProbe, 10, 120+Offsetp, 100, 20);
+            this.uipPropagator.build    (uitProbe, 10, 120+Offsetp, 140, 20);
             this.uibLoadProbe.build    (uitProbe, 10, 90+Offsetp, 100, 20);
             this.uibLoadObject.build    (uitProbe, 250, 90+Offsetp, 100, 20);
             this.uibGenProbeObject.build    (uitProbe, 430, 130+Offsetp, 100, 20);
-
+            this.uicbGuess.build (uitProbe, 430, 10+Offsetp, 100, 20);
+            
             % Custom Sim
             uitCSim = this.uitgSelectDataSource.getTabByName('Sim stochastics');drawnow
             Offset8=27;
