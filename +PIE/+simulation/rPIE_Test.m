@@ -65,7 +65,7 @@ switch probeType
         Rprobe_um = do_um*N*0.15;
         dp_um = 50000; % propagation distance
         samplingFactor_obj = lambda_um.*dp_um/(N*do_um*do_um);
-        probe = Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
+        probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
             do_um,lambda_um,dp_um);
     case 'aperture'
         Rprobe_um = do_um*N*0.15;
@@ -76,7 +76,7 @@ if samplingFactor_obj>1
     fprintf('Please adjust configurations for propagation sampling\n');
     return;
 end
-overlap = PIE.utils.overlapRatio(Rprobe_um,Rmax_um/scanSteps); % overlap ratio of two circles
+overlap = PIE.utils.overlapRatio(Rprobe_um,(Rmax_um-Rmin_um)/(scanSteps-1)); % overlap ratio of two circles
 if overlap<0.6 % check overlap
     fprintf('Overlap ratio(%0.1f%%) is less than 60%%. Please adjust configurations\n',overlap*100);
     return;

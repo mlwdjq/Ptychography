@@ -70,6 +70,8 @@ classdef PIE_Analyze < mic.Base
         dWxUnwrapped
         dWyUnwrapped
         dResult
+        dProbe
+        dObject
         
         % Shear guides
         dBeamWidthEstPx = 1
@@ -127,7 +129,7 @@ classdef PIE_Analyze < mic.Base
         % Controls:Experiment Setup
         uieLambda
         uieNA
-        uieT
+        uieScanRange
         uiez2
         uieGratTilt
         uieDetTilt
@@ -180,9 +182,18 @@ classdef PIE_Analyze < mic.Base
         uibLoadZrn
         uibSimulate
         uibSimulateS
-        uieNPhSteps
+        uieScanSteps
         uipbExposureProgress
         uicbMultiPhaseShifting
+        
+        % Controls:Data:Probe and Object
+        uipProbeType
+        uipObjectType
+        uipPropagator
+        uibLoadProbe
+        uibLoadObject
+        uibGenProbeObject
+        uieRprobe
         
         % Controls:Data:SimStochastics
         uibCustomSim
@@ -287,7 +298,7 @@ classdef PIE_Analyze < mic.Base
             
             % Controls: Experiment setup panel
             this.uieLambda      = mic.ui.common.Edit('cLabel', 'Lambda (nm)', 'cType', 'd');
-            this.uieT           = mic.ui.common.Edit('cLabel', 'T (um)', 'cType', 'd');
+            this.uieScanRange   = mic.ui.common.Edit('cLabel', 'Scan range (mm)', 'cType', 'd');
             this.uieNA          = mic.ui.common.Edit('cLabel', 'NA', 'cType', 'd');
             this.uiez2          = mic.ui.common.Edit('cLabel', 'Z_2 (mm)', 'cType', 'd');
             this.uieGratTilt    = mic.ui.common.Edit('cLabel', 'Gr. Tilt (deg)', 'cType', 'd');
@@ -299,7 +310,7 @@ classdef PIE_Analyze < mic.Base
             
             
             this.uieLambda.set(13.5);
-            this.uieT.set(0.234);
+            this.uieScanRange.set(0.1);
             this.uieNA.set(0.5);
             this.uiez2.set(20);
             this.uieGratTilt.set(1.12);
@@ -317,7 +328,7 @@ classdef PIE_Analyze < mic.Base
             
             % Controls: Data panel
             this.uitgSelectDataSource = ...
-                mic.ui.common.Tabgroup('ceTabNames', {'Load Interferogram', 'Load P/S Series', 'Simulation', 'Sim stochastics'});
+                mic.ui.common.Tabgroup('ceTabNames', {'Load Interferogram', 'Load P/S Series', 'Simulation','Probe and object', 'Sim stochastics'});
             
             this.uieCCDCenter       = mic.ui.common.Edit('cLabel', 'CCD Center pixel', 'cType', 'c', ...
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
@@ -364,7 +375,7 @@ classdef PIE_Analyze < mic.Base
             this.uieZrn         = mic.ui.common.Edit('cLabel', 'Zernike couples vector [N X 2]', 'cType', 'c','fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             
             this.uicbMultiPhaseShifting = mic.ui.common.Checkbox('cLabel', 'Multi-shifting',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieNPhSteps    = mic.ui.common.Edit('cLabel', 'N Phi', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieScanSteps    = mic.ui.common.Edit('cLabel', 'Scanning steps', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uiePhaseStepsSim  = mic.ui.common.Edit('cLabel', 'Phase steps', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uibLoadZrn     = mic.ui.common.Button('cText', 'Load Zrn File', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibSimulate    = mic.ui.common.Button('cText', 'Simulate Single', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -381,12 +392,25 @@ classdef PIE_Analyze < mic.Base
             this.uiez1.set(1);
             this.uieNp.set(30000);
             this.uieRes.set(256);
-            this.uieNPhSteps.set(4);
+            this.uieScanSteps.set(4);
             this.uiePhaseStepsSim.set('[0:pi/2:3*pi/2;0:pi/2:3*pi/2]''')
             this.uieZrn.set('[]');
             this.uicbMultiPhaseShifting.set(true);
             
-            % Controls:Data:Simulation
+            % Controls:Data:Probe and object
+            this.uipProbeType     = mic.ui.common.Popup('cLabel', 'Probe type', 'ceOptions', {'Defocus wave','Plane wave'}, ...
+                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vaccum','Cameraman'}, ...
+                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uipPropagator     = mic.ui.common.Popup('cLabel', 'Propagator', 'ceOptions', {'fourier','angular spectrum','fresnel'}, ...
+                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uibLoadProbe    = mic.ui.common.Button('cText', 'Load probe', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uibLoadObject    = mic.ui.common.Button('cText', 'Load object', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uibGenProbeObject   = mic.ui.common.Button('cText', 'Generate', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieRprobe = mic.ui.common.Edit('cLabel', 'Probe radius on det (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieRprobe.set(this.uieDetSize.get()/2); 
+            
+            % Controls:Data:Sim stochastics
             this.uibCustomSim = mic.ui.common.Button('cText', 'Custom Sim', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibReset = mic.ui.common.Button('cText', 'Reset', 'fhDirectCallback', @(src, evt)this.cb(src));
             
@@ -565,6 +589,85 @@ classdef PIE_Analyze < mic.Base
                     this.replot(this.U8DATA, []);
                     % Need to recenter data
                     this.handleLoadData();
+                case this.uibLoadProbe
+                    
+                case this.uibLoadObject
+                    
+                case this.uibGenProbeObject
+                    probeType = this.uipProbeType.getOptions{this.uipProbeType.getSelectedIndex()};
+                    objectType = this.uipObjectType.getOptions{this.uipObjectType.getSelectedIndex()};
+                    propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                    N           = this.uieRes.get();
+                    Rprobe_um   = this.uieRprobe.get()*1000;
+                    lambda_um   = this.uieLambda.get()/1000;
+                    df_um       = this.uiez1.get()*1000;% negative sign corresponds convergent
+                    z_um       = this.uiez2.get()*1000;
+                    scanRange_um  = this.uieScanRange.get()*1000;
+                    scanSteps  = this.uieScanSteps.get();
+                    detSize_um  = this.uieDetSize.get()*1000; 
+                    dc_um       = detSize_um/N; % detector pixel pitch
+                    samplingFactor_det = lambda_um.*z_um/(dc_um*N*dc_um);
+                    if samplingFactor_det>1
+                        fprintf('Please adjust configurations for propagation sampling\n');
+                    end
+                    if strcmp(propagator,'fourier')
+                        do_um = lambda_um*z_um/N/dc_um;
+                    else
+                        do_um = dc_um; % object pixel pitch
+                    end
+                 %% initial probe
+                    switch probeType
+                        case 'Defocus wave'
+                            samplingFactor_obj = lambda_um.*z_um/(N*dc_um*do_um);
+                            Rc_um = Rprobe_um/abs(df_um)*(z_um+df_um) ;
+                            [n1,n2]=meshgrid(1:N);
+                            n1 = n1-N/2-1;
+                            n2 = n2-N/2-1;
+                            probe = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
+                                exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2)))));
+                        case 'Plane wave'
+                            samplingFactor_obj = lambda_um.*abs(df_um)/(N*do_um*do_um);
+                            probe = Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
+                                do_um,lambda_um,abs(df_um));
+                    end
+                    this.dProbe = single(probe);
+                    if samplingFactor_obj>1
+                        fprintf('Please adjust configurations for propagation sampling\n');
+                    end
+                    overlap = PIE.utils.overlapRatio(Rprobe_um,scanRange_um/(scanSteps-1)); % overlap ratio of two circles
+                    if overlap<0.6 % check overlap
+                        fprintf('Overlap ratio(%0.1f%%) is less than 60%%. Please adjust configurations\n',overlap*100);
+                    end
+                    %% initial object
+                    K = round(scanRange_um/do_um)+N;
+                    L = round(scanRange_um/do_um)+N; % size of object [K,L]
+                    switch objectType
+                        case 'Vacuum'
+                            this.dObject = single(ones(K,L));
+                        case 'Cameraman'
+                            I = single(flipud(imread('cameraman.tif')));
+                            [m,n] = meshgrid(linspace(0,1,L),linspace(0,1,K));
+                            [sr,sc,~]= size(I);
+                            [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
+                            object_amp = interp2(p,q,I(:,:,1),m,n);
+                            object_amp = mat2gray(object_amp)*0.8+0.2; % object amplitude
+                             I =single(imread('pears.png'));
+                             [sr,sc,~]= size(I);
+                            [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
+                            object_pha = interp2(p,q,I(:,:,1),m,n);
+                            object_pha=mat2gray(object_pha);
+                            object_pha = (object_pha-0.5)*2*pi; % object phase
+                            object = object_amp.*exp(1i*object_pha);
+                            this.dObject = single(object);
+                    end
+                    % Make phase tab active:
+                    this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
+                    
+                    % Plot wavefronts on phase tab
+                    this.replot(this.U8PROBEOBJECT, []);
+                    
+                    % Set state:
+                    this.setState(this.U8STATE_PHASE_PROCESSED);
                     
                 case this.uieObsOffset
                     this.validateCouplesEditBox(src, '[]');
@@ -573,7 +676,7 @@ classdef PIE_Analyze < mic.Base
                     % Need to recenter data
                     this.handleLoadData();
                     
-                case {this.uiez2, this.uieNA, this.uieLambda, this.uieT, this.uieCenterObstruction}
+                case {this.uiez2, this.uieNA, this.uieLambda, this.uieScanRange, this.uieCenterObstruction}
                     % redraw guide lines
                     this.replot(this.U8DATA, []);
                     
@@ -762,8 +865,8 @@ classdef PIE_Analyze < mic.Base
                     
                     
                     
-                case this.uieNPhSteps
-                    dN = this.uieNPhSteps.get();
+                case this.uieScanSteps
+                    dN = this.uieScanSteps.get();
                     dPhseString = sprintf('0:2*pi/%d:%d*pi/%d', dN, dN*2 - 2, dN);
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPhseString, dPhseString));
                     
@@ -771,7 +874,7 @@ classdef PIE_Analyze < mic.Base
                     [lValid, vals] = this.validateCouplesEditBox(src, '[]');
                     if lValid
                         [sr, sc] = size(vals);
-                        this.uieNPhSteps.set(sr);
+                        this.uieScanSteps.set(sr);
                     end
                     
                 case this.uibComputePhase
@@ -993,7 +1096,7 @@ classdef PIE_Analyze < mic.Base
                     dPhaseSteps             = eval(this.uiePhaseStepsTD.get());
                     u8FourierTransformType  = this.uipFTType.getSelectedIndex();
                     lambda_um   = this.uieLambda.get()/1000;
-                    T_um        = this.uieT.get();
+                    T_um        = this.uieScanRange.get();
                     shearingPercentage=lambda_um/T_um/tan(asin(NA));
                     cutFrequency=1/shearingPercentage;
                     Ws=this.uieLowPass.get();
@@ -1005,7 +1108,7 @@ classdef PIE_Analyze < mic.Base
                     %                             lsianalyze.utils.extractPhaseTDs(...
                     %                                 this.ceInt, dPhaseSteps, u8FourierTransformType, ...
                     %                                 u8UnwrapAlgorithm, this.dAnalysisRegion,this.dAnalysisRegion2, ....
-                    %                                 this.uieNA.get(),this.uieT.get(),z2_mm,detSize);
+                    %                                 this.uieNA.get(),this.uieScanRange.get(),z2_mm,detSize);
                     switch double(this.uipDataType.getSelectedIndex())
                         case {1, 2} % 1D
                             
@@ -1015,7 +1118,7 @@ classdef PIE_Analyze < mic.Base
                                 lsianalyze.utils.extract2x1Dphase(...
                                 this.ceInt, dPhaseSteps, u8FourierTransformType, ...
                                 u8UnwrapAlgorithm, this.dAnalysisRegion,this.dAnalysisRegion2,dLowPass,FilterType, ....
-                                NA,this.uieT.get(),z2_mm,detSize);
+                                NA,this.uieScanRange.get(),z2_mm,detSize);
                             
                             
                         case 3 % 2D
@@ -1026,13 +1129,13 @@ classdef PIE_Analyze < mic.Base
                                 lsianalyze.utils.extract2DTDphase(...
                                 this.ceInt, this.ceIntMeta, dPhaseSteps, u8FourierTransformType, ...
                                 u8UnwrapAlgorithm, this.dAnalysisRegion,this.dAnalysisRegion2,dLowPass,FilterType,....
-                                NA,this.uieT.get(),z2_mm,detSize);
+                                NA,this.uieScanRange.get(),z2_mm,detSize);
                     end
                     
                     
                 case 'Fourier Domain'
                     [this.dWx, this.dWy, this.dWxNoTilt, this.dWyNoTilt, this.dWxUnwrapped, this.dWyUnwrapped,z1,CCDrot]    = lsianalyze.utils.extractPhaseFD(...
-                        this.ceInt{1}, FilterType, FilterWidth, u8UnwrapAlgorithm, this.dAnalysisRegion,this.dAnalysisRegion2,NA,this.uieT.get(),z2_mm,detSize);
+                        this.ceInt{1}, FilterType, FilterWidth, u8UnwrapAlgorithm, this.dAnalysisRegion,this.dAnalysisRegion2,NA,this.uieScanRange.get(),z2_mm,detSize);
             end
             this.uieFDZ1.set(z1);
             this.uitGramRot.set(strcat('Gram Rot:',num2str(CCDrot),'degree'));
@@ -1068,7 +1171,7 @@ classdef PIE_Analyze < mic.Base
             FittingType  = this.uipFittingType.getSelectedIndex();
             N           = this.uieRes.get();
             lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieT.get();
+            T_um        = this.uieScanRange.get();
             %z1_um       = this.uiez1.get();
             z1_um       = this.uieFDZ1.get();
             z2_mm       = this.uiez2.get();
@@ -1299,7 +1402,7 @@ classdef PIE_Analyze < mic.Base
             
             N           = this.uieRes.get();
             lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieT.get();
+            T_um        = this.uieScanRange.get();
             z1_um       = this.uiez1.get();
             z2_mm       = this.uiez2.get();
             alpha       = this.uieGratTilt.get() * pi/180;
@@ -1378,7 +1481,7 @@ classdef PIE_Analyze < mic.Base
             % Generate Wx and Wy using 2-ray method:
             N           = this.uieRes.get();
             lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieT.get();
+            T_um        = this.uieScanRange.get();
             z1_um       = this.uiez1.get();
             z2_mm       = this.uiez2.get();
             alpha       = this.uieGratTilt.get() * pi/180;
@@ -1406,7 +1509,7 @@ classdef PIE_Analyze < mic.Base
             dNonlinearityPower = dNonlinearitys(2);
             if lComputePSStack % True if simulating "stack"
                 %                 simInts = {};
-                u8NumPhaseSteps = this.uieNPhSteps.get();
+                u8NumPhaseSteps = this.uieScanSteps.get();
                 simInts = cell(u8NumPhaseSteps, 2);
                 this.uipbExposureProgress.set(0);
                 
@@ -1422,10 +1525,10 @@ classdef PIE_Analyze < mic.Base
                 
                 
                 dZDriftTotal = this.uieZLinearDrift.get() / 1000; % (um)
-                dXDriftTotal = this.uieXLinearDrift.get() / this.uieT.get() / 1000 * 2 * pi; % (rad)
-                dYDriftTotal = this.uieYLinearDrift.get() / this.uieT.get() / 1000 * 2 * pi; % (rad)
+                dXDriftTotal = this.uieXLinearDrift.get() / this.uieScanRange.get() / 1000 * 2 * pi; % (rad)
+                dYDriftTotal = this.uieYLinearDrift.get() / this.uieScanRange.get() / 1000 * 2 * pi; % (rad)
                 
-                dStageUncertainty = this.uiePhaseShiftingError.get() / this.uieT.get() / 1000  * 2 * pi; %rad
+                dStageUncertainty = this.uiePhaseShiftingError.get() / this.uieScanRange.get() / 1000  * 2 * pi; %rad
                 
                 
                 if dZDriftTotal > 0 % Then compute a drift map (in um):
@@ -1594,7 +1697,7 @@ classdef PIE_Analyze < mic.Base
         
         function computeDefaultMaskGeometry(this)
             lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieT.get();
+            T_um        = this.uieScanRange.get();
             z2_mm       = this.uiez2.get();
             z1_mm       = this.uiez1.get()/1000;
             NA          = this.uieNA.get();
@@ -1646,7 +1749,7 @@ classdef PIE_Analyze < mic.Base
         
         function computeMET5Mask(this)
             lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieT.get();
+            T_um        = this.uieScanRange.get();
             z2_mm       = this.uiez2.get();
             z1_mm       = this.uiez1.get()/1000;
             NA          = this.uieNA.get();
@@ -1698,7 +1801,7 @@ classdef PIE_Analyze < mic.Base
         end
         function computeElipticalMask(this)
             lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieT.get();
+            T_um        = this.uieScanRange.get();
             z2_mm       = this.uiez2.get();
             z1_mm       = this.uiez1.get()/1000;
             NA          = this.uieNA.get();
@@ -1754,7 +1857,7 @@ classdef PIE_Analyze < mic.Base
             store = [];
             switch src
                 case this.prControlsSetup
-                    ceFields = {'uieLambda', 'uieT', 'uieNA', 'uiez2', ...
+                    ceFields = {'uieLambda', 'uieScanRange', 'uieNA', 'uiez2', ...
                         'uieGratTilt', 'uieDetTilt', 'uieGlobalRot', 'uieDetSize',...
                         'uieCenterObstruction','uieBinning'};
                     for k = 1:length(ceFields)
@@ -1781,7 +1884,7 @@ classdef PIE_Analyze < mic.Base
         function prSetters(this, src, dRecall)
             switch src
                 case this.prControlsSetup
-                    ceFields = {'uieLambda', 'uieT', 'uieNA', 'uiez2', ...
+                    ceFields = {'uieLambda', 'uieScanRange', 'uieNA', 'uiez2', ...
                         'uieGratTilt', 'uieDetTilt', 'uieGlobalRot', 'uieDetSize',...
                         'uieCenterObstruction','uieBinning'};
                     for k = 1:length(ceFields)
@@ -2035,14 +2138,16 @@ classdef PIE_Analyze < mic.Base
                         this.hsaInterferogram.setHoldState('off');
                         
                     case  this.U8PROBEOBJECT
-                        imagesc(this.haProbeAmp, this.dWx);colorbar(this.haProbeAmp);axis(this.haProbeAmp,'xy');
-                        this.haProbeAmp.Title.String = 'X-shear phase';
-                        imagesc(this.haProbePha, this.dWy);colorbar(this.haProbePha);axis(this.haProbePha,'xy');
-                        this.haProbePha.Title.String = 'Y-shear phase';
-                        imagesc(this.haObjectAmp, this.dWxNoTilt);colorbar(this.haObjectAmp);axis(this.haObjectAmp,'xy');
-                        this.haObjectAmp.Title.String = 'X-shear phase with tilt removed';
-                        imagesc(this.haObjectPha, this.dWyNoTilt);colorbar(this.haObjectPha);axis(this.haObjectPha,'xy');
-                        this.haObjectPha.Title.String = 'Y-shear phase with tilt removed';
+                        
+                        
+                        imagesc(this.haProbeAmp, abs(this.dProbe));colorbar(this.haProbeAmp);axis(this.haProbeAmp,'xy');
+                        this.haProbeAmp.Title.String = 'Probe amplitude';
+                        imagesc(this.haProbePha, atan2(imag(this.dProbe),real(this.dProbe)));colorbar(this.haProbePha);axis(this.haProbePha,'xy');
+                        this.haProbePha.Title.String = 'Probe phase';
+                        imagesc(this.haObjectAmp, abs(this.dObject));colorbar(this.haObjectAmp);axis(this.haObjectAmp,'xy');
+                        this.haObjectAmp.Title.String = 'Object amplitude';
+                        imagesc(this.haObjectPha, atan2(imag(this.dObject),real(this.dObject)));colorbar(this.haObjectPha);axis(this.haObjectPha,'xy');
+                        this.haObjectPha.Title.String = 'Object phase';
                     case  this.U8GUESS
                         imagesc(this.haGuessProbeAmp, this.dWx);colorbar(this.haProbeAmp);axis(this.haProbeAmp,'xy');
                         this.haProbeAmp.Title.String = 'X-shear phase';
@@ -2160,7 +2265,7 @@ classdef PIE_Analyze < mic.Base
                         this.uieNZernikes.set(paramValue);
                         this.uieNZernikesBasis.set(paramValue);
                     case 'nPhSteps'
-                        this.uieNPhSteps.set(paramValue);
+                        this.uieScanSteps.set(paramValue);
                         dN = paramValue;
                         dPhseString = sprintf('0:2*pi/%d:%d*pi/%d', dN, dN*2 - 2, dN);
                         this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPhseString, dPhseString));
@@ -2203,7 +2308,7 @@ classdef PIE_Analyze < mic.Base
                     case 'fittingType'
                         this.uipFittingType.setSelectedIndex(uint8(paramValue));
                     case 'gratingPitch'
-                        this.uieT.set(paramValue);
+                        this.uieScanRange.set(paramValue);
                     case 'Z_1'
                         this.uiez1.set(paramValue);
                     case 'recType'
@@ -2346,7 +2451,7 @@ classdef PIE_Analyze < mic.Base
             drawnow
             Offset0=0;
             this.uieLambda.build    (this.hpAnalysisSetup, 20, 20+Offset0, 90, 20);
-            this.uieT.build         (this.hpAnalysisSetup, 125, 20+Offset0, 90, 20);
+            this.uieScanRange.build         (this.hpAnalysisSetup, 125, 20+Offset0, 90, 20);
             this.uieNA.build        (this.hpAnalysisSetup, 20, 60+Offset0, 90, 20);
             this.uiez2.build        (this.hpAnalysisSetup, 125, 60+Offset0, 90, 20);
             this.uieGratTilt.build  (this.hpAnalysisSetup, 20, 100+Offset0, 90, 20);
@@ -2413,7 +2518,7 @@ classdef PIE_Analyze < mic.Base
             this.uieRes.build       (uitSim, 10, 50+Offset4, 50, 20);
             this.uiez1.build        (uitSim, 70, 50+Offset4, 50, 20);
             this.uieNp.build        (uitSim, 130, 50+Offset4, 50, 20);
-            this.uieNPhSteps.build  (uitSim, 190, 50+Offset4, 50, 20);
+            this.uieScanSteps.build  (uitSim, 190, 50+Offset4, 50, 20);
             this.uiePhaseStepsSim.build  ...
                 (uitSim, 250, 50+Offset4, 170, 20);
             this.uibLoadPhaseStepsSim.build ...
@@ -2426,7 +2531,17 @@ classdef PIE_Analyze < mic.Base
             this.uicbMultiPhaseShifting.build (uitSim, 10, 140+Offset4, 100, 20)
             this.uipbExposureProgress.build ...
                 (uitSim, 10, 170+Offset4, 200, 20);
-            
+            % Probe and object
+            Offsetp=0;
+            uitProbe = this.uitgSelectDataSource.getTabByName('Probe and object');drawnow
+            this.uipProbeType.build    (uitProbe, 10, 10+Offsetp, 100, 20);
+            this.uipObjectType.build    (uitProbe, 250, 10+Offsetp, 100, 20);
+            this.uieRprobe.build    (uitProbe, 120, 10+Offsetp, 100, 20);
+            this.uipPropagator.build    (uitProbe, 10, 120+Offsetp, 100, 20);
+            this.uibLoadProbe.build    (uitProbe, 10, 90+Offsetp, 100, 20);
+            this.uibLoadObject.build    (uitProbe, 250, 90+Offsetp, 100, 20);
+            this.uibGenProbeObject.build    (uitProbe, 430, 130+Offsetp, 100, 20);
+
             % Custom Sim
             uitCSim = this.uitgSelectDataSource.getTabByName('Sim stochastics');drawnow
             Offset8=27;
