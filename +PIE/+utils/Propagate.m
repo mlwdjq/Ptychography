@@ -36,5 +36,5 @@ switch propagator
         % Compute FFT
         F = fftshift(fft2(fftshift(input)));
         % multiply by phase-shift and inverse transform
-        output = ifftshift(ifft2(ifftshift(F.*exp(-li*pi*z*wavelength*w))));
+        output = ifftshift(ifft2(ifftshift(F.*exp(-1i*pi*z*wavelength*w))));
 end

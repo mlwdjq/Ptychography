@@ -9,9 +9,9 @@ if nargin==4&&preShift == 1
     switch propagator
         case 'fourier'
             if H>0
-                output = fft2(input);
+                output = fftshift(fft2(fftshift(input)));
             else
-                output = ifft2(input);
+                output = ifftshift(ifft2(ifftshift(input)));
             end
         case 'angular spectrum'
             % Compute FFT of input

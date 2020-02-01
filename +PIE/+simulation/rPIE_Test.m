@@ -47,7 +47,7 @@ yo_mm = yo_um/1000;
 xc_mm = xc_um/1000;
 
 %% initial probe
-probeType = 'defocus';
+probeType = 'plane';
 switch probeType
     case 'defocus'
         df_um = -50e3; % negative sign corresponds convergent
@@ -58,7 +58,7 @@ switch probeType
         n1 = n1-N/2-1;
         n2 = n2-N/2-1;
         probe = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
-            exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2)))));
+            exp(-1i*pi*abs(df_um)*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2)))));
 %         probes = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
 %             exp(-1i*pi*df_um*dc_um^2/lambda_um/(z_um+10000)^2*(n1.^2+n2.^2)))));
     case 'plane'
@@ -79,7 +79,7 @@ end
 overlap = PIE.utils.overlapRatio(Rprobe_um,(Rmax_um-Rmin_um)/(scanSteps-1)); % overlap ratio of two circles
 if overlap<0.6 % check overlap
     fprintf('Overlap ratio(%0.1f%%) is less than 60%%. Please adjust configurations\n',overlap*100);
-    return;
+%     return;
 end
 % figure(2),imagesc(xp_um,xp_um,atan2(imag(probe),real(probe)));
 % xlabel('mm'),ylabel('mm');axis tight equal
