@@ -233,6 +233,7 @@ classdef PIE_Analyze < mic.Base
         uitgAnalysisDomain
         uipUnwrapEngine
         uibComputePhase
+        uibStop
         uieFDZ1
         uitGramRot
         % Controls:Phase:FD
@@ -455,7 +456,7 @@ classdef PIE_Analyze < mic.Base
             this.uipUnwrapEngine        = mic.ui.common.Popup('cLabel', 'Unwrapping algorithm', 'ceOptions', {'Sorting reliability unwrap'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibComputePhase        = mic.ui.common.Button('cText', 'Reconstruction',  'fhDirectCallback', @(src, evt)this.cb(src));
-            
+            this.uibStop        = mic.ui.common.Button('cText', 'Stop',  'fhDirectCallback', @(src, evt)this.cb(src));
             % Controls:Phase:TD
             this.uiePhaseStepsTD        = mic.ui.common.Edit('cLabel', 'Phase steps [N X 2]', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieLowPass             = mic.ui.common.Edit('cLabel', 'Low pass (N*Ws,0=none)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -807,6 +808,10 @@ classdef PIE_Analyze < mic.Base
                 case this.uibComputePhase
                     this.processPhase(this.uitgAnalysisDomain.getSelectedTabName());
                     
+                case this.uibStop
+                    global stopSign
+                    stopSign=1;
+                    
                 case this.uibReconstruct
                     % this.reconstruct(this.uitgReconstructionType.getSelectedTabName());
                     % call reconstruct functions here
@@ -885,19 +890,20 @@ classdef PIE_Analyze < mic.Base
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
                     object_amp = interp2(p,q,I(:,:,1),m,n);
                     object_amp = mat2gray(object_amp)*0.8+0.2; % object amplitude
+%                     object_amp = ones(K,L);
                     I =single(imread('pears.png'));
                     [sr,sc,~]= size(I);
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
                     object_pha = interp2(p,q,I(:,:,1),m,n);
                     object_pha=mat2gray(object_pha);
-                    object_pha = (object_pha-0.5)*2*pi; % object phase
+                    object_pha = (object_pha-0.5)*1.8*pi; % object phase
                     object = object_amp.*exp(1i*object_pha);
                     
             end
             if initialGuess
-                this.dObjectGuess = single(object);
+                this.dObjectGuess = object;
             else
-                this.dObject = single(object);
+                this.dObject = object;
             end
             % Make phase tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
@@ -1098,17 +1104,18 @@ classdef PIE_Analyze < mic.Base
         end
         
         function processPhase(this, cAnalysisDomain)
-            
             if isempty(this.ceInt)
                 msgbox('Please load/simulate interferograms first!', 'Error');
                 return;
             end
+            global stopSign
+            stopSign = 0;
             % Make phase tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
             
             scanSteps               = this.uieScanSteps.get();
             lambda_um = this.uieLambda.get()/1000;
-            z_um = this.uiez2.get();
+            z_um = this.uiez2.get()*1000;
             detSize_um     = this.uieDetSize.get()*1000;
             N = length(this.ceInt{1,1});
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
@@ -1121,8 +1128,9 @@ classdef PIE_Analyze < mic.Base
             H = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,z_um,1);
             Hm = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,-z_um,1);
             dPosShifts = eval(this.uiePhaseStepsSim.get());
-            [Rx_mm,Ry_mm] = meshgrid(dPosShifts(:,1),dPosShifts(:,2));
-            Rpix = round([Ry_mm(:),Rx_mm(:)]*1000/do_um);
+            Rm = round(dPosShifts(:,1)*1000/do_um);
+            Rn = round(dPosShifts(:,2)*1000/do_um);
+%             Rpix = round([Rx_mm(:),Ry_mm(:)]*1000/do_um);
             this.dProbeRecon =this.dProbeGuess;
             this.dObjectRecon =this.dObjectGuess;
             sqrtInt  = zeros(N,N,scanSteps^2);
@@ -1130,6 +1138,7 @@ classdef PIE_Analyze < mic.Base
             for i =1:scanSteps
                 for j =1:scanSteps
                     sqrtInt(:,:,k)=this.ceInt{i,j};
+                    k=k+1;
                 end
             end
             iteration =1000;
@@ -1154,20 +1163,22 @@ classdef PIE_Analyze < mic.Base
                 tempError = 0;
                 switch cAnalysisDomain
                     case 'rPIE' % scanning solution
-                        for j =1:scanSteps^2
-                            reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                            % figure(2),imagesc(xo_mm,yo_mm,abs(object)),axis tight equal ;
-                            % title('object amplitude');drawnow;
+                        for j =1:scanSteps
+                            for k =1:scanSteps
+                            reconBox = this.dObjectRecon(Rm(j)+[1:N],Rn(k)+[1:N]);
+%                              figure(4),imagesc(atan2(imag(this.dObjectRecon),real(this.dObjectRecon))),axis tight equal ;
+%                             title('object amplitude');drawnow;pause(1)
                             exitWave = reconBox.*this.dProbeRecon;
-                            [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt(:,:,j),...
+                            [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,this.ceInt{j,k},...
                                 propagator,H,Hm,1);
                             tempProbe = this.dProbeRecon;
                             denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
                             newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
                             denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
                             this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
-                            this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
-                            tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
+                            this.dObjectRecon(Rm(j)+[1:N],Rn(k)+[1:N]) = newReconBox;
+                            tempError = tempError + abs(this.ceInt{j,k}-abs(detectorWave)).^2;
+                            end
                         end
                     case 'RAAR' % batch scanning solution
                         if i==1 % initial exitWaves
@@ -1239,14 +1250,10 @@ classdef PIE_Analyze < mic.Base
                     this.replot(this.U8RECONSTRUCTION, []);
                 end
                 fprintf('%d iterations finished,residual error: %0.5f\n',i,errors(i));
-%                 if i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<1e-4)
-%                     break;
-%                 end
+                if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<1e-4))
+                    break;
+                end
             end
-            
-            
-            
-            
             
             % Set state:
             this.setState(this.U8STATE_PHASE_PROCESSED);
@@ -1573,7 +1580,7 @@ classdef PIE_Analyze < mic.Base
             N           = this.uieRes.get();
             lambda_um   = this.uieLambda.get()/1000;
             detSize_um     = this.uieDetSize.get()*1000;
-            z_um        =this.uiez2.get();
+            z_um        =this.uiez2.get()*1000;
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
             dc_um       = detSize_um/N; % detector pixel pitch
             if strcmp(propagator,'fourier')
@@ -2086,7 +2093,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObject);
+                        [K,L] = size(this.dObjectGuess);
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         xo_mm = [1:L]*do_um/1000; % object coordinates
                         yo_mm = [1:K]*do_um/1000; % object coordinates
@@ -2571,6 +2578,7 @@ classdef PIE_Analyze < mic.Base
             %
             %             this.uipUnwrapEngine.build  (this.hpPhase, 415, 90+Offset5, 170, 20);
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
+            this.uibStop.build  (this.hpPhase, 415, 130, 160, 20);
             %
             %             this.uieFDZ1.build          (this.hpPhase, 415, 20+Offset5, 80, 20)
             %             this.uitGramRot.build    (this.hpPhase, 415, 65+Offset5, 200, 20)

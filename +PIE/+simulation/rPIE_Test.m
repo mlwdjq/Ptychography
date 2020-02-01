@@ -62,7 +62,7 @@ switch probeType
 %         probes = ifftshift(ifft2(ifftshift(pinhole(round(Rc_um/dc_um),N,N).*...
 %             exp(-1i*pi*df_um*dc_um^2/lambda_um/(z_um+10000)^2*(n1.^2+n2.^2)))));
     case 'plane'
-        Rprobe_um = do_um*N*0.15;
+        Rprobe_um = do_um*N*0.24;
         dp_um = 50000; % propagation distance
         samplingFactor_obj = lambda_um.*dp_um/(N*do_um*do_um);
         probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
@@ -86,15 +86,28 @@ end
 % figure(3),imagesc(xp_mm,xp_mm,abs(probe)),xlabel('mm'),ylabel('mm');axis tight equal
 
 %% initial object
-object_amp = mat2gray(imread('cameraman.tif'))*0.8+0.2; % object amplitude
-% object_amp = ones(K,L);
-object_amp = object_amp(1:K,1:L);
-object_pha=mat2gray(imread('pears.png'));
-object_pha= object_pha(1:K,1:L,1);
+% object_amp = mat2gray(imread('cameraman.tif'))*0.8+0.2; % object amplitude
+% % object_amp = ones(K,L);
+% object_amp = object_amp(1:K,1:L);
+% object_pha=mat2gray(imread('pears.png'));
+% object_pha= object_pha(1:K,1:L,1);
+% object_pha = (object_pha-0.5)*2*pi; % object phase
+% object = object_amp.*exp(1i*object_pha);
+% % figure(2),imagesc(xo_mm,yo_mm,abs(object_amp)),xlabel('mm'),ylabel('mm');axis tight equal
+% object = single(object);
+I = single(flipud(imread('cameraman.tif')));
+[m,n] = meshgrid(linspace(0,1,L),linspace(0,1,K));
+[sr,sc,~]= size(I);
+[p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
+object_amp = interp2(p,q,I(:,:,1),m,n);
+object_amp = mat2gray(object_amp)*0.8+0.2; % object amplitude
+I =single(imread('pears.png'));
+[sr,sc,~]= size(I);
+[p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
+object_pha = interp2(p,q,I(:,:,1),m,n);
+object_pha=mat2gray(object_pha);
 object_pha = (object_pha-0.5)*2*pi; % object phase
 object = object_amp.*exp(1i*object_pha);
-% figure(2),imagesc(xo_mm,yo_mm,abs(object_amp)),xlabel('mm'),ylabel('mm');axis tight equal
-object = single(object);
 %% prepropagate (calculate frequency responds function)
 preShift = 1;
 H = PIE.utils.prePropagate (probe,propagator,do_um,lambda_um,z_um,preShift);
@@ -108,8 +121,8 @@ for j = 1:scanSteps^2
     Em(:,:,j) = PIE.utils.postPropagate (exitWave,propagator,H,preShift);
     sqrtInt = single(abs(Em));
     measurements = sqrtInt.^2;
-    %     figure(2),imagesc(xc_mm,xc_mm,measurements(:,:,j)),xlabel('mm'),ylabel('mm');
-    %     axis tight equal;drawnow;
+        figure(2),imagesc(xc_mm,xc_mm,sqrtInt(:,:,j)),xlabel('mm'),ylabel('mm');
+        axis tight equal;drawnow;
 end
 Is = sum(measurements,3); % total intensity on detector
 fprintf('diffraction simulation finished\n');

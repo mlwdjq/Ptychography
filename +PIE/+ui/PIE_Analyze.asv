@@ -232,7 +232,7 @@ classdef PIE_Analyze < mic.Base
         % Controls:Reconstruction
         uitgAnalysisDomain
         uipUnwrapEngine
-         uibComputePhase
+        uibComputePhase
         uieFDZ1
         uitGramRot
         % Controls:Phase:FD
@@ -885,19 +885,20 @@ classdef PIE_Analyze < mic.Base
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
                     object_amp = interp2(p,q,I(:,:,1),m,n);
                     object_amp = mat2gray(object_amp)*0.8+0.2; % object amplitude
+%                     object_amp = ones(K,L);
                     I =single(imread('pears.png'));
                     [sr,sc,~]= size(I);
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
                     object_pha = interp2(p,q,I(:,:,1),m,n);
                     object_pha=mat2gray(object_pha);
-                    object_pha = (object_pha-0.5)*2*pi; % object phase
+                    object_pha = (object_pha-0.5)*1.8*pi; % object phase
                     object = object_amp.*exp(1i*object_pha);
                     
             end
             if initialGuess
-                this.dObjectGuess = single(object);
+                this.dObjectGuess = object;
             else
-                this.dObject = single(object);
+                this.dObject = object;
             end
             % Make phase tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
@@ -1102,8 +1103,16 @@ classdef PIE_Analyze < mic.Base
                 msgbox('Please load/simulate interferograms first!', 'Error');
                 return;
             end
+            this.uibComputePhase.n
+            
+            % Make phase tab active:
+            this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
+            
             scanSteps               = this.uieScanSteps.get();
+            lambda_um = this.uieLambda.get()/1000;
+            z_um = this.uiez2.get()*1000;
             detSize_um     = this.uieDetSize.get()*1000;
+            N = length(this.ceInt{1,1});
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
             dc_um       = detSize_um/N; % detector pixel pitch
             if strcmp(propagator,'fourier')
@@ -1111,97 +1120,139 @@ classdef PIE_Analyze < mic.Base
             else
                 do_um = dc_um; % object pixel pitch
             end
+            H = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,z_um,1);
+            Hm = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,-z_um,1);
             dPosShifts = eval(this.uiePhaseStepsSim.get());
-            [Rx_mm,Ry_mm] = meshgrid(dPosShifts(:,1),dPosShifts(:,2));
-            Rpix = round([Ry_mm(:),Rx_mm(:)]*1000/do_um);
+            Rm = round(dPosShifts(:,1)*1000/do_um);
+            Rn = round(dPosShifts(:,2)*1000/do_um);
+%             Rpix = round([Rx_mm(:),Ry_mm(:)]*1000/do_um);
             this.dProbeRecon =this.dProbeGuess;
             this.dObjectRecon =this.dObjectGuess;
-            switch cAnalysisDomain
-                case 'rPIE' % scanning solution
-                    for j =1:scanSteps^2
-                        reconBox = this.ObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                        % figure(2),imagesc(xo_mm,yo_mm,abs(object)),axis tight equal ;
-                        % title('object amplitude');drawnow;
-                        exitWave = reconBox.*this.dProbeRecon;
-                        [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,this.ceInt(),...
-                            propagator,H,Hm,preShift);
-                        tempProbe = this.dProbeRecon;
-                        denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
-                        newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
-                        denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
-                        this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
-                        this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
-                        tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
-                    end
-                case 'RAAR' % batch scanning solution
-                    if i==1 % initial exitWaves
-                        exitWaves = zeros(N,N,scanSteps^2);
-                        for j =1:scanSteps^2
+            sqrtInt  = zeros(N,N,scanSteps^2);
+            k=1;
+            for i =1:scanSteps
+                for j =1:scanSteps
+                    sqrtInt(:,:,k)=this.ceInt{i,j};
+                    k=k+1;
+                end
+            end
+            iteration =1000;
+            errors = zeros(iteration,1);
+            alpha = 1; % weight factor for updating object
+            beta = 0.1; % weight factor for updating probe
+            gamma = 0.2; % weight factor for rPIE, 1 for ePIE
+            delta = 0.1; % weight factor for RAAR, 1 for DM
+            if strcmp(cAnalysisDomain,'WDD')
+                I_set_u_R = reshape(measurements,N,N,scanSteps,scanSteps);
+                I_set_R_u= permute(I_set_u_R,[3, 4, 1, 2]);
+                G_set_u_U = single(zeros(N,N,scanSteps,scanSteps));
+                G_set_U_u = single(zeros(scanSteps,scanSteps,N,N));
+                H_set_r_U = G_set_u_U;
+                H_set_U_r = G_set_U_u;
+                L_set_r_R = G_set_u_U;
+                L_set_R_r = G_set_U_u;
+                Xa = G_set_u_U;
+                Q = G_set_u_U;
+            end
+            for i = 1:iteration
+                tempError = 0;
+                switch cAnalysisDomain
+                    case 'rPIE' % scanning solution
+                        for j =1:scanSteps
+                            for k =1:scanSteps
+                            reconBox = this.dObjectRecon(Rm(j)+[1:N],Rn(k)+[1:N]);
+%                              figure(4),imagesc(atan2(imag(this.dObjectRecon),real(this.dObjectRecon))),axis tight equal ;
+%                             title('object amplitude');drawnow;pause(1)
+                            exitWave = reconBox.*this.dProbeRecon;
+                            [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,this.ceInt{j,k},...
+                                propagator,H,Hm,1);
+                            tempProbe = this.dProbeRecon;
+                            denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
+                            newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
+                            denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
+                            this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
+                            this.dObjectRecon(Rm(j)+[1:N],Rn(k)+[1:N]) = newReconBox;
+                            tempError = tempError + abs(this.ceInt{j,k}-abs(detectorWave)).^2;
+                            end
+                        end
+                    case 'RAAR' % batch scanning solution
+                        if i==1 % initial exitWaves
+                            exitWaves = zeros(N,N,scanSteps^2);
+                            for j =1:scanSteps^2
+                                reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
+                                exitWaves(:,:,j) = pthis.dProbeRecon.*reconBox;
+                            end
+                        end
+                        parfor j =1:scanSteps^2
                             reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                            exitWaves(:,:,j) = pthis.dProbeRecon.*reconBox;
+                            waveToPropagate = 2*this.dProbeRecon.*reconBox-exitWaves(:,:,j);
+                            [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(waveToPropagate,sqrtInt(:,:,j),...
+                                propagator,H,Hm,1);
+                            tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
+                            exitWaves(:,:,j) = delta*(exitWaves(:,:,j) + exitWaveNew) +(1-2*delta)*this.dProbeRecon.*reconBox;
                         end
-                    end
-                    parfor j =1:scanSteps^2
-                        reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                        waveToPropagate = 2*this.dProbeRecon.*reconBox-exitWaves(:,:,j);
-                        [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(waveToPropagate,sqrtInt(:,:,j),...
-                            propagator,H,Hm,preShift);
-                        tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
-                        exitWaves(:,:,j) = delta*(exitWaves(:,:,j) + exitWaveNew) +(1-2*delta)*this.dProbeRecon.*reconBox;
-                    end
-                    this.dProbeRecon = PIE.utils.BatchProbeUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,beta);
-                    this.dObjectRecon = PIE.utils.BatchObjectUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,alpha);
-                case 'WDD' % Wigner distribution deconvolution
-                    % I_set(u,R), G_set(u,U), H_set(r,U), L_set(r,R)
-                    for m = 1:N
-                        for n = 1:N
-                            G_set_U_u(:,:,m,n) = fftshift(fft2(fftshift(I_set_R_u(:,:,m,n)))); % from R to U
+                        this.dProbeRecon = PIE.utils.BatchProbeUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,beta);
+                        this.dObjectRecon = PIE.utils.BatchObjectUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,alpha);
+                    case 'WDD' % Wigner distribution deconvolution
+                        % I_set(u,R), G_set(u,U), H_set(r,U), L_set(r,R)
+                        for m = 1:N
+                            for n = 1:N
+                                G_set_U_u(:,:,m,n) = fftshift(fft2(fftshift(I_set_R_u(:,:,m,n)))); % from R to U
+                            end
                         end
-                    end
-                    G_set_u_U = ipermute(G_set_U_u,[3 4 1 2]);
-                    for m = 1:scanSteps
-                        for n = 1:scanSteps
-                            L_set_r_R(:,:,m,n) = ifftshift(ifft2(ifftshift(I_set_u_R(:,:,m,n)))); % from u to r
-                            H_set_r_U(:,:,m,n) = ifftshift(ifft2(ifftshift(G_set_u_U(:,:,m,n)))); % from u to r
+                        G_set_u_U = ipermute(G_set_U_u,[3 4 1 2]);
+                        for m = 1:scanSteps
+                            for n = 1:scanSteps
+                                L_set_r_R(:,:,m,n) = ifftshift(ifft2(ifftshift(I_set_u_R(:,:,m,n)))); % from u to r
+                                H_set_r_U(:,:,m,n) = ifftshift(ifft2(ifftshift(G_set_u_U(:,:,m,n)))); % from u to r
+                            end
                         end
-                    end
-                    L_set_R_r = permute(L_set_r_R,[3 4 1 2]);
-                    H_set_U_r = permute(H_set_r_U,[3 4 1 2]);
-                    for m = 1:scanSteps
-                        for n = 1:scanSteps
-                            temp1 = fftshift(fft2(fftshift(this.dObjectRecon(Rypix(m,n)+[1:N],Rxpix(m,n)+[1:N])))); % from R to U
-                            temp0 = fftshift(fft2(fftshift(this.dObjectRecon(Rypix(round((scanSteps+1)/2),...
-                                round((scanSteps+1)/2))+[1:N],Rxpix(round((scanSteps+1)/2),round((scanSteps+1)/2))+[1:N]))));
-                            Xa(:,:,m,n) = ifftshift(ifft2(ifftshift(conj(temp1).*temp0)));%% may change the conj
+                        L_set_R_r = permute(L_set_r_R,[3 4 1 2]);
+                        H_set_U_r = permute(H_set_r_U,[3 4 1 2]);
+                        for m = 1:scanSteps
+                            for n = 1:scanSteps
+                                temp1 = fftshift(fft2(fftshift(this.dObjectRecon(Rypix(m,n)+[1:N],Rxpix(m,n)+[1:N])))); % from R to U
+                                temp0 = fftshift(fft2(fftshift(this.dObjectRecon(Rypix(round((scanSteps+1)/2),...
+                                    round((scanSteps+1)/2))+[1:N],Rxpix(round((scanSteps+1)/2),round((scanSteps+1)/2))+[1:N]))));
+                                Xa(:,:,m,n) = ifftshift(ifft2(ifftshift(conj(temp1).*temp0)));%% may change the conj
+                            end
                         end
-                    end
-                    Xq = conj(Xa).*H_set_r_U./(abs(Xa).^2+eps);
-                    for m = 1:scanSteps
-                        for n = 1:scanSteps
-                            Q(:,:,m,n) = fftshift(fft2(fftshift(Xq(:,:,m,n))));%% may change the conj
+                        Xq = conj(Xa).*H_set_r_U./(abs(Xa).^2+eps);
+                        for m = 1:scanSteps
+                            for n = 1:scanSteps
+                                Q(:,:,m,n) = fftshift(fft2(fftshift(Xq(:,:,m,n))));%% may change the conj
+                            end
                         end
-                    end
-                    for m = 1:scanSteps
-                        for n = 1:scanSteps
-                            Qs(m,n) =Q(N/scanSteps*(m-1)+1,N/scanSteps*(n-1)+1,m,n);%% may change the conj
+                        for m = 1:scanSteps
+                            for n = 1:scanSteps
+                                Qs(m,n) =Q(N/scanSteps*(m-1)+1,N/scanSteps*(n-1)+1,m,n);%% may change the conj
+                            end
                         end
-                    end
-                    q = ifftshift(ifft2(ifftshift(Qs)));
-                    q_amp =abs(q);
-                    q_pha =atan2(imag(q),real(q));
-                    imagesc(q_amp);colorbar;
-                    %             subplot(122),imagesc(q_pha);
-                    %             Probe = fftshift(fft2(fftshift(probe)));
-                    %             temp = permute(G_set_u_U,[1,2,3,4]);
-                    %             imagesc(abs(temp(:,:,10,10)))
+                        q = ifftshift(ifft2(ifftshift(Qs)));
+                        q_amp =abs(q);
+                        q_pha =atan2(imag(q),real(q));
+                        imagesc(q_amp);colorbar;
+                        %             subplot(122),imagesc(q_pha);
+                        %             Probe = fftshift(fft2(fftshift(probe)));
+                        %             temp = permute(G_set_u_U,[1,2,3,4]);
+                        %             imagesc(abs(temp(:,:,10,10)))
+                        %                     break;
+                end
+                % error evaluation
+                errors(i) = sum(tempError(:))/sum(sum(sum(sqrtInt)));
+                if strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
+                    % Plot wavefronts on phase tab
+                    this.replot(this.U8RECONSTRUCTION, []);
+                end
+                fprintf('%d iterations finished,residual error: %0.5f\n',i,errors(i));
+%                 if i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<1e-4)
 %                     break;
+%                 end
             end
             
-            % Make phase tab active:
-            this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
             
-            % Plot wavefronts on phase tab
-            this.replot(this.U8PROBEOBJECT, []);
+            
+            
             
             % Set state:
             this.setState(this.U8STATE_PHASE_PROCESSED);
@@ -1528,7 +1579,7 @@ classdef PIE_Analyze < mic.Base
             N           = this.uieRes.get();
             lambda_um   = this.uieLambda.get()/1000;
             detSize_um     = this.uieDetSize.get()*1000;
-            
+            z_um        =this.uiez2.get()*1000;
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
             dc_um       = detSize_um/N; % detector pixel pitch
             if strcmp(propagator,'fourier')
@@ -1546,7 +1597,7 @@ classdef PIE_Analyze < mic.Base
                 
                 
                 dPosShifts = eval(this.uiePhaseStepsSim.get());
-
+                
                 dXPosShifts = round(dPosShifts(:,1)*1000/do_um);
                 dYPosShifts = round(dPosShifts(:,2)*1000/do_um);
                 
@@ -2041,7 +2092,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObject);
+                        [K,L] = size(this.dObjectGuess);
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         xo_mm = [1:L]*do_um/1000; % object coordinates
                         yo_mm = [1:K]*do_um/1000; % object coordinates
@@ -2055,6 +2106,33 @@ classdef PIE_Analyze < mic.Base
                         imagesc(this.haGuessObjectPha, xo_mm,yo_mm,atan2(imag(this.dObjectGuess),real(this.dObjectGuess)));colorbar(this.haGuessObjectPha);axis(this.haGuessObjectPha,'xy');
                         this.haGuessObjectPha.Title.String = 'Object phase';this.haGuessObjectPha.XLabel.String = 'mm';this.haGuessObjectPha.YLabel.String = 'mm';
                     case this.U8RECONSTRUCTION
+                        % intermedium object and probe
+                        propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                        detSize_um  = this.uieDetSize.get()*1000;
+                        lambda_um =this.uieLambda.get()/1000;
+                        z_um =this.uiez2.get()*1000;
+                        N           = this.uieRes.get();
+                        dc_um       = detSize_um/N; % detector pixel pitch
+                        if strcmp(propagator,'fourier')
+                            do_um = lambda_um*z_um/N/dc_um;
+                        else
+                            do_um = dc_um; % object pixel pitch
+                        end
+                        [K,L] = size(this.dObject);
+                        xp_mm = [1:N]*do_um/1000; % object coordinates
+                        xo_mm = [1:L]*do_um/1000; % object coordinates
+                        yo_mm = [1:K]*do_um/1000; % object coordinates
+                        
+                        imagesc(this.haReconProbeAmp, xp_mm,xp_mm,abs(this.dProbeRecon));colorbar(this.haReconProbeAmp);axis(this.haReconProbeAmp,'xy');
+                        this.haReconProbeAmp.Title.String = 'Probe amplitude';this.haReconProbeAmp.XLabel.String = 'mm';this.haReconProbeAmp.YLabel.String = 'mm';
+                        imagesc(this.haReconProbePha, xp_mm,xp_mm,atan2(imag(this.dProbeRecon),real(this.dProbeRecon)));colorbar(this.haReconProbePha);axis(this.haReconProbePha,'xy');
+                        this.haReconProbePha.Title.String = 'Probe phase';this.haReconProbePha.XLabel.String = 'mm';this.haReconProbePha.YLabel.String = 'mm';
+                        imagesc(this.haReconObjectAmp, xo_mm,yo_mm,abs(this.dObjectRecon));colorbar(this.haReconObjectAmp);axis(this.haReconObjectAmp,'xy');
+                        this.haReconObjectAmp.Title.String = 'Object amplitude';this.haReconObjectAmp.XLabel.String = 'mm';this.haReconObjectAmp.YLabel.String = 'mm';
+                        imagesc(this.haReconObjectPha, xo_mm,yo_mm,atan2(imag(this.dObjectRecon),real(this.dObjectRecon)));colorbar(this.haReconObjectPha);axis(this.haReconObjectPha,'xy');
+                        this.haReconObjectPha.Title.String = 'Object phase';this.haReconObjectPha.XLabel.String = 'mm';this.haReconObjectPha.YLabel.String = 'mm';
+                        drawnow;
+                    case this.U8ANALYSIS
                         u8ReconUnit               = this.uipReconUnit.getSelectedIndex();
                         switch u8ReconUnit
                             case 1  %unit: Wave
@@ -2490,29 +2568,29 @@ classdef PIE_Analyze < mic.Base
                 'Position', [10 190 600 190] ...
                 );
             drawnow
-%             Offset5=20;
-             this.uitgAnalysisDomain.build(this.hpPhase, 10, 20, 400, 160);drawnow
-%             
+            %             Offset5=20;
+            this.uitgAnalysisDomain.build(this.hpPhase, 10, 20, 400, 160);drawnow
+            %
             uitRPIE = this.uitgAnalysisDomain.getTabByName('rPIE');
             uitRAAR = this.uitgAnalysisDomain.getTabByName('RAAR');
             uitWDD = this.uitgAnalysisDomain.getTabByName('WDD');
-%             
-%             this.uipUnwrapEngine.build  (this.hpPhase, 415, 90+Offset5, 170, 20);
+            %
+            %             this.uipUnwrapEngine.build  (this.hpPhase, 415, 90+Offset5, 170, 20);
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
-%             
-%             this.uieFDZ1.build          (this.hpPhase, 415, 20+Offset5, 80, 20)
-%             this.uitGramRot.build    (this.hpPhase, 415, 65+Offset5, 200, 20)
-%             
-%             % Controls:Phase:FD
-%             this.uipWindowFunction.build    (uitFD, 10, 20, 200, 20);
-%             this.uieFilterWidth.build    (uitFD, 10, 70, 80, 20);
-%             % Controls:Phase:TD
-%             Offset6=-40;
-%             this.uiePhaseStepsTD.build  (uitTD, 10, 60+Offset6, 250, 20);
-%             this.uieLowPass.build  (uitTD, 200, 105+Offset6, 130, 20);
-%             this.uipFTType.build        (uitTD, 10, 100+Offset6, 150, 20);
-%             this.uibTDLoadPhaseStepsTD.build ...
-%                 (uitTD, 270, 60 + 13+Offset6, 100, 20);
+            %
+            %             this.uieFDZ1.build          (this.hpPhase, 415, 20+Offset5, 80, 20)
+            %             this.uitGramRot.build    (this.hpPhase, 415, 65+Offset5, 200, 20)
+            %
+            %             % Controls:Phase:FD
+            %             this.uipWindowFunction.build    (uitFD, 10, 20, 200, 20);
+            %             this.uieFilterWidth.build    (uitFD, 10, 70, 80, 20);
+            %             % Controls:Phase:TD
+            %             Offset6=-40;
+            %             this.uiePhaseStepsTD.build  (uitTD, 10, 60+Offset6, 250, 20);
+            %             this.uieLowPass.build  (uitTD, 200, 105+Offset6, 130, 20);
+            %             this.uipFTType.build        (uitTD, 10, 100+Offset6, 150, 20);
+            %             this.uibTDLoadPhaseStepsTD.build ...
+            %                 (uitTD, 270, 60 + 13+Offset6, 100, 20);
             
             
             % Controls: Reconstruction
