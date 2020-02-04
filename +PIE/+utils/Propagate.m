@@ -17,9 +17,9 @@ fy = y./(ysize*dx);
 switch propagator
     case 'fourier'
         if z>0
-            output = fftshift(fft2(fftshift(input)));
+            output = fftshift(fft2(fftshift(input)))/sqrt(ysize*xsize);
         else
-            output = ifftshift(ifft2(ifftshift(input)));
+            output = ifftshift(ifft2(ifftshift(input)))*sqrt(ysize*xsize);
         end
     case 'angular spectrum'
         % Calculate phase distribution for each plane wave component

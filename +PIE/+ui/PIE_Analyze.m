@@ -207,6 +207,7 @@ classdef PIE_Analyze < mic.Base
         uibGenProbeObject
         uieRprobe
         uicbGuess
+        uitOverlap
         
         % Controls:Data:SimStochastics
         uibCustomSim
@@ -236,8 +237,18 @@ classdef PIE_Analyze < mic.Base
         uibStop
         uieFDZ1
         uitGramRot
-        % Controls:Phase:FD
+        uitIteration
+        uieAlpha
+        uieBeta
+        uieMaxIteration
+        uieAccuracy
+        % Controls: Reconstruction: rPIE
+        uieGamma
         
+        % Controls: Reconstruction: RAAR
+        uieDelta
+        
+        % Controls:Phase:FD
         uieFilterWidth
         uipWindowFunction
         
@@ -307,13 +318,14 @@ classdef PIE_Analyze < mic.Base
             
             this.uitRMS                 = mic.ui.common.Text('cVal','RMS:');
             this.uitRMSFit                 = mic.ui.common.Text('cVal','RMSFit:');
+            this.uitIteration               = mic.ui.common.Text('cVal','');
             
             %this.uitRMS.cVal([]);
             
             % Controls: Experiment setup panel
             this.uieLambda      = mic.ui.common.Edit('cLabel', 'Lambda (nm)', 'cType', 'd');
-            this.uieScanRange   = mic.ui.common.Edit('cLabel', 'Scan range (mm)', 'cType', 'd');
-            this.uieNA          = mic.ui.common.Edit('cLabel', 'NA', 'cType', 'd');
+            this.uieScanRange   = mic.ui.common.Edit('cLabel', 'Scan range (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieNA          = mic.ui.common.Edit('cLabel', 'NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uiez2          = mic.ui.common.Edit('cLabel', 'Z_2 (mm)', 'cType', 'd');
             this.uieGratTilt    = mic.ui.common.Edit('cLabel', 'Gr. Tilt (deg)', 'cType', 'd');
             this.uieDetTilt     = mic.ui.common.Edit('cLabel', 'Dt. Tilt (deg)', 'cType', 'd');
@@ -324,11 +336,11 @@ classdef PIE_Analyze < mic.Base
             
             
             this.uieLambda.set(13.5);
-            this.uieScanRange.set(0.1);
-            this.uieNA.set(0.5);
-            this.uiez2.set(20);
-            this.uieGratTilt.set(1.12);
-            this.uieDetTilt.set(1.12);
+            this.uieScanRange.set(1);
+            this.uieNA.set(0);
+            this.uiez2.set(200);
+            this.uieGratTilt.set(0);
+            this.uieDetTilt.set(0);
             this.uieGlobalRot.set(0);
             this.uieDetSize.set(26);
             this.uieCenterObstruction.set(0);
@@ -403,7 +415,7 @@ classdef PIE_Analyze < mic.Base
                 'dHeight', 15, ...
                 'dWidth', 455);
             
-            this.uiez1.set(-50);
+            this.uiez1.set(50);
             this.uieNp.set(30000);
             this.uieRes.set(256);
             this.uieScanSteps.set(4);
@@ -429,6 +441,7 @@ classdef PIE_Analyze < mic.Base
             this.uieRprobe.set(this.uieDetSize.get()/4);
             this.uicbGuess = mic.ui.common.Checkbox('cLabel', 'Initial guess',  'fhDirectCallback', @(src, evt)this.cb(src));
             this.uicbGuess.set(true);
+            this.uitOverlap                 = mic.ui.common.Text('cVal','Overlap:');
             
             % Controls:Data:Sim stochastics
             this.uibCustomSim = mic.ui.common.Button('cText', 'Custom Sim', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -450,13 +463,30 @@ classdef PIE_Analyze < mic.Base
             this.uieNonlinearity       = mic.ui.common.Edit('cLabel', 'Nonlinearity (a,b)', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieAirflow       = mic.ui.common.Edit('cLabel', 'Airflow', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieNonlinearity.set('[0, 0]');
-            % Controls: Phase
+            % Controls: Reconstruction
             this.uitgAnalysisDomain = mic.ui.common.Tabgroup('ceTabNames', {'rPIE', 'RAAR', 'WDD'});
             
             this.uipUnwrapEngine        = mic.ui.common.Popup('cLabel', 'Unwrapping algorithm', 'ceOptions', {'Sorting reliability unwrap'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibComputePhase        = mic.ui.common.Button('cText', 'Reconstruction',  'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibStop        = mic.ui.common.Button('cText', 'Stop',  'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieAlpha                = mic.ui.common.Edit('cLabel', 'Alpha (O)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieBeta                = mic.ui.common.Edit('cLabel', 'Beta (P)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieMaxIteration              = mic.ui.common.Edit('cLabel', 'Max iteration', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieAccuracy              = mic.ui.common.Edit('cLabel', 'Max iteration', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieAlpha.set(1);
+            this.uieBeta.set(1);
+            this.uieMaxIteration.set(1000);
+            this.uieAccuracy.set(0.0001);
+            
+            % Controls: Reconstruction: rPIE
+            this.uieGamma                = mic.ui.common.Edit('cLabel', 'Gamma', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieGamma.set(0.2);
+            
+            % Controls: Reconstruction: RAAR
+            this.uieDelta                = mic.ui.common.Edit('cLabel', 'Delta', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieDelta.set(0.1);
+            
             % Controls:Phase:TD
             this.uiePhaseStepsTD        = mic.ui.common.Edit('cLabel', 'Phase steps [N X 2]', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieLowPass             = mic.ui.common.Edit('cLabel', 'Low pass (N*Ws,0=none)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -603,9 +633,50 @@ classdef PIE_Analyze < mic.Base
                     % Need to recenter data
                     this.handleLoadData();
                     
-                case {this.uiez2, this.uieNA, this.uieLambda, this.uieScanRange, this.uieCenterObstruction}
+                case {this.uiez2, this.uieLambda, this.uieCenterObstruction}
                     % redraw guide lines
                     this.replot(this.U8DATA, []);
+                    
+                case this.uieNA
+                    NA = this.uieNA.get();
+                    if NA>0
+                        this.uipProbeType.setSelectedIndex(uint8(1));
+                        z_mm = this.uiez2.get();
+                        df_mm = this.uiez1.get();
+                        Rc_mm = (z_mm+df_mm)*tan(asin(NA));
+                        this.uieRprobe.set(Rc_mm);
+                    else
+                        this.uipProbeType.setSelectedIndex(uint8(2));
+                    end
+                    % redraw guide lines
+                    this.replot(this.U8DATA, []);
+                    
+                case this.uieRprobe
+                    probeType = this.uipProbeType.getOptions{this.uipProbeType.getSelectedIndex()};
+                    if strcmp(probeType,'Defocus wave')
+                        Rc_mm = this.uieRprobe.get();
+                        z_mm = this.uiez2.get();
+                        df_mm = this.uiez1.get();
+                        NA = sin(atan(Rc_mm / (z_mm+df_mm)));
+                        this.uieNA.set(NA);
+                    end
+                    
+                case this.uipProbeType
+                    probeType = this.uipProbeType.getOptions{this.uipProbeType.getSelectedIndex()};
+                    switch probeType
+                        case 'Defocus wave'
+                            this.cb(this.uieRprobe);
+                            this.uipPropagator.setSelectedIndex(uint8(2));
+                        case 'Plane wave'
+                            this.uieNA.set(0);
+                            this.uipPropagator.setSelectedIndex(uint8(1));
+                    end
+                    
+                case this.uieScanRange
+                    dN = this.uieScanSteps.get();
+                    dL = this.uieScanRange.get();
+                    dPosString = sprintf('0:%0.2f/%d:%0.2f', dL, dN-1, dL);
+                    this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
                     
                 case {this.uibSetLogFileSingle, this.uibSetLogFileStack}
                     cDataDir = fullfile(this.cAppPath, '..', '..', '..', 'Data', '*.csv');
@@ -806,7 +877,7 @@ classdef PIE_Analyze < mic.Base
                     end
                     
                 case this.uibComputePhase
-                    this.processPhase(this.uitgAnalysisDomain.getSelectedTabName());
+                    this.reconstruct(this.uitgAnalysisDomain.getSelectedTabName());
                     
                 case this.uibStop
                     global stopSign
@@ -815,7 +886,7 @@ classdef PIE_Analyze < mic.Base
                 case this.uibReconstruct
                     % this.reconstruct(this.uitgReconstructionType.getSelectedTabName());
                     % call reconstruct functions here
-                    this.reconstruct(this.uitgReconstructionType.getSelectedTabName());
+                    this.analyze(this.uitgReconstructionType.getSelectedTabName());
                     
             end
         end
@@ -854,15 +925,13 @@ classdef PIE_Analyze < mic.Base
                     [n1,n2]=meshgrid(1:N);
                     n1 = n1-N/2-1;
                     n2 = n2-N/2-1;
-                    %                     probe = ifftshift(ifft2(ifftshift(pinhole(round(2*Rc_um/dc_um),N,N).*...
-                    %                         exp(-1i*pi*abs(z_um)*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2)))));
-                    s= exp(-1i*pi*abs(z_um)*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));
-                    probe = PIE.utils.Propagate (pinhole(round(2*Rc_um/dc_um),N,N).*s,'fresnel',...
-                        do_um,lambda_um,-abs(df_um));
+                    Hs= exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));
+                    probe = PIE.utils.Propagate (pinhole(round(2*Rc_um/dc_um),N,N).*Hs,propagator,...
+                        do_um,lambda_um,-df_um);
                 case 'Plane wave'
                     Rprobe_um = Rc_um;
                     samplingFactor_obj = lambda_um.*abs(df_um)/(N*do_um*do_um);
-                    probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),'angular spectrum',...
+                    probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),propagator,...
                         do_um,lambda_um,abs(df_um));
             end
             if initialGuess
@@ -874,12 +943,14 @@ classdef PIE_Analyze < mic.Base
                 fprintf('Please adjust configurations for propagation sampling\n');
             end
             overlap = PIE.utils.overlapRatio(Rprobe_um,scanRange_um/(scanSteps-1)); % overlap ratio of two circles
-            if overlap<0.6 % check overlap
-                fprintf('Overlap ratio(%0.1f%%) is less than 60%%. Please adjust configurations\n',overlap*100);
-            end
+            this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
             %% initial object
             K = round(scanRange_um/do_um)+N;
             L = round(scanRange_um/do_um)+N; % size of object [K,L]
+            if K>2000
+                fprintf('object sampling: %d, please adjust scanning range\n',K);
+                return;
+            end
             switch objectType
                 case 'Vacuum'
                     object = single(ones(K,L));
@@ -896,7 +967,7 @@ classdef PIE_Analyze < mic.Base
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
                     object_pha = interp2(p,q,I(:,:,1),m,n);
                     object_pha=mat2gray(object_pha);
-                    object_pha = (object_pha-0.5)*1.8*pi; % object phase
+                    object_pha = (object_pha-0.5)*1*pi; % object phase
                     object = object_amp.*exp(1i*object_pha);
                     
             end
@@ -905,6 +976,7 @@ classdef PIE_Analyze < mic.Base
             else
                 this.dObject = object;
             end
+            
             % Make phase tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
             
@@ -1103,7 +1175,7 @@ classdef PIE_Analyze < mic.Base
             fprintf('Parsed log file %s\n', cPath);
         end
         
-        function processPhase(this, cAnalysisDomain)
+        function reconstruct(this, cAnalysisDomain)
             if isempty(this.ceInt)
                 msgbox('Please load/simulate interferograms first!', 'Error');
                 return;
@@ -1131,6 +1203,13 @@ classdef PIE_Analyze < mic.Base
             Rm = round(dPosShifts(:,1)*1000/do_um);
             Rn = round(dPosShifts(:,2)*1000/do_um);
 %             Rpix = round([Rx_mm(:),Ry_mm(:)]*1000/do_um);
+            if isempty(this.dProbeGuess)
+                this.dProbeGuess = pinhole(round(N/2),N,N);
+            end
+            if isempty(this.dObjectGuess)
+                KL = round(this.uieScanRange.get()*1000./do_um)+N;
+                this.dObjectGuess = ones(KL);
+            end
             this.dProbeRecon =this.dProbeGuess;
             this.dObjectRecon =this.dObjectGuess;
             sqrtInt  = zeros(N,N,scanSteps^2);
@@ -1138,15 +1217,16 @@ classdef PIE_Analyze < mic.Base
             for i =1:scanSteps
                 for j =1:scanSteps
                     sqrtInt(:,:,k)=this.ceInt{i,j};
+                    Rpix(k,:)=[Rm(i),Rn(j)];
                     k=k+1;
                 end
             end
-            iteration =1000;
+            iteration = this.uieMaxIteration.get();
             errors = zeros(iteration,1);
-            alpha = 1; % weight factor for updating object
-            beta = 0.1; % weight factor for updating probe
-            gamma = 0.2; % weight factor for rPIE, 1 for ePIE
-            delta = 0.1; % weight factor for RAAR, 1 for DM
+            alpha = this.uieAlpha.get(); % weight factor for updating object
+            beta = this.uieBeta.get(); % weight factor for updating probe
+            gamma = this.uieGamma.get(); % weight factor for rPIE, 1 for ePIE
+            delta = this.uieDelta.get(); % weight factor for RAAR, 1 for DM
             if strcmp(cAnalysisDomain,'WDD')
                 I_set_u_R = reshape(measurements,N,N,scanSteps,scanSteps);
                 I_set_R_u= permute(I_set_u_R,[3, 4, 1, 2]);
@@ -1185,7 +1265,7 @@ classdef PIE_Analyze < mic.Base
                             exitWaves = zeros(N,N,scanSteps^2);
                             for j =1:scanSteps^2
                                 reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                                exitWaves(:,:,j) = pthis.dProbeRecon.*reconBox;
+                                exitWaves(:,:,j) = this.dProbeRecon.*reconBox;
                             end
                         end
                         parfor j =1:scanSteps^2
@@ -1248,9 +1328,12 @@ classdef PIE_Analyze < mic.Base
                 if strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
                     % Plot wavefronts on phase tab
                     this.replot(this.U8RECONSTRUCTION, []);
+                    
                 end
-                fprintf('%d iterations finished,residual error: %0.5f\n',i,errors(i));
-                if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<1e-4))
+                iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
+                this.uitIteration.set(iterationStr);drawnow;
+                
+                if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<this.uieAccuracy.get()))
                     break;
                 end
             end
@@ -1260,7 +1343,7 @@ classdef PIE_Analyze < mic.Base
         end
         
         
-        function reconstruct(this, cReconstructionType)
+        function analyze(this, cReconstructionType)
             if isempty(this.dWx)||isempty(this.dWy)
                 msgbox('Please process phase first!', 'Error');
                 return;
@@ -1590,6 +1673,14 @@ classdef PIE_Analyze < mic.Base
             end
             
             H = PIE.utils.prePropagate (this.dProbe,propagator,do_um,lambda_um,z_um,1);
+            if isempty(this.dProbe)
+                this.dProbe = pinhole(round(N/2),N,N);
+            end
+            if isempty(this.dObject)
+                KL = round(this.uieScanRange.get()*1000./do_um)+N;
+                this.dObject = ones(KL);
+            end
+            
             if lComputePSStack % True if simulating "stack"
                 %                 simInts = {};
                 u8NumPhaseSteps = this.uieScanSteps.get();
@@ -1845,6 +1936,9 @@ classdef PIE_Analyze < mic.Base
                     else
                         this.uieCCDCenter.set('[]');
                     end
+                    % update scanning position
+                    this.cb(this.uieScanRange);
+                    this.cb(this.uieNA);
             end
             
             % Need to reload data after a parameter change:
@@ -2225,10 +2319,10 @@ classdef PIE_Analyze < mic.Base
             this.simulateInteferograms(true);
             
             % Process phase:
-            this.processPhase(this.uitgAnalysisDomain.getSelectedTabName());
+            this.reconstruct(this.uitgAnalysisDomain.getSelectedTabName());
             
             % Reconstruct:
-            this.reconstruct(this.uitgReconstructionType.getSelectedTabName());
+            this.analyze(this.uitgReconstructionType.getSelectedTabName());
             
         end
         
@@ -2304,7 +2398,7 @@ classdef PIE_Analyze < mic.Base
                 dOffsetY = 0;
             end
             
-            % build the main window
+            %% build the main window
             this.hFigure = figure(...
                 'name', 'PIE analysis GUI v1.20190129',...
                 'Units', 'pixels',...
@@ -2320,7 +2414,7 @@ classdef PIE_Analyze < mic.Base
             
             drawnow
             
-            % Axes
+            %% Axes
             dTgPx = 20;
             dTgPy = 20;
             this.uitgAxesDisplay.build(this.hFigure, dTgPx, dTgPy, 950, 950);
@@ -2405,7 +2499,7 @@ classdef PIE_Analyze < mic.Base
                 'Position', [520, 50, 400, 340], ...
                 'XTick', [], 'YTick', []);
             
-            % Axes:Reconstruction
+            % Axes:Analysis
             uitAnalysis = this.uitgAxesDisplay.getTabByName('Analysis');
             this.haAnalysis = axes('Parent', uitAnalysis, ...
                 'Units', 'pixels', ...
@@ -2421,7 +2515,8 @@ classdef PIE_Analyze < mic.Base
             % Axes:Log
             uitLog = this.uitgAxesDisplay.getTabByName('Log');
             this.htLog = uitable(uitLog,'Position',[10 10 930 900],'CellSelectionCallback',@(src, evt)this.cb(src,evt));
-            % Controls main:
+           
+            %% Controls main:
             this.hpControls = uipanel(...
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
@@ -2433,7 +2528,7 @@ classdef PIE_Analyze < mic.Base
                 );
             
             
-            % Controls: Experiment setup:
+            %% Controls: Experiment setup:
             this.hpAnalysisSetup = uipanel(...
                 'Parent', this.hpControls,...
                 'Units', 'pixels',...
@@ -2458,7 +2553,7 @@ classdef PIE_Analyze < mic.Base
             
             this.prControlsSetup.build(this.hpAnalysisSetup, 235, 15, 350, 200);
             
-            % Controls: Data panel:
+            %% Controls: Data panel:
             this.hpData = uipanel(...
                 'Parent', this.hpControls,...
                 'Units', 'pixels',...
@@ -2537,6 +2632,7 @@ classdef PIE_Analyze < mic.Base
             this.uibLoadObject.build    (uitProbe, 250, 90+Offsetp, 100, 20);
             this.uibGenProbeObject.build    (uitProbe, 430, 130+Offsetp, 100, 20);
             this.uicbGuess.build (uitProbe, 430, 10+Offsetp, 100, 20);
+            this.uitOverlap.build (uitProbe, 430, 90+Offsetp, 120, 20);
             
             % Custom Sim
             uitCSim = this.uitgSelectDataSource.getTabByName('Sim stochastics');drawnow
@@ -2558,7 +2654,7 @@ classdef PIE_Analyze < mic.Base
             this.uieNonlinearity.build          (uitCSim, 20+Offset8, 130, 90, 25);
             this.uieAirflow.build               (uitCSim, 150+Offset8, 130, 90, 25);
             
-            % Controls: Reconstruction
+            %% Controls: Reconstruction
             this.hpPhase = uipanel(...
                 'Parent', this.hpControls,...
                 'Units', 'pixels',...
@@ -2575,27 +2671,20 @@ classdef PIE_Analyze < mic.Base
             uitRPIE = this.uitgAnalysisDomain.getTabByName('rPIE');
             uitRAAR = this.uitgAnalysisDomain.getTabByName('RAAR');
             uitWDD = this.uitgAnalysisDomain.getTabByName('WDD');
-            %
-            %             this.uipUnwrapEngine.build  (this.hpPhase, 415, 90+Offset5, 170, 20);
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
             this.uibStop.build  (this.hpPhase, 415, 130, 160, 20);
-            %
-            %             this.uieFDZ1.build          (this.hpPhase, 415, 20+Offset5, 80, 20)
-            %             this.uitGramRot.build    (this.hpPhase, 415, 65+Offset5, 200, 20)
-            %
-            %             % Controls:Phase:FD
-            %             this.uipWindowFunction.build    (uitFD, 10, 20, 200, 20);
-            %             this.uieFilterWidth.build    (uitFD, 10, 70, 80, 20);
-            %             % Controls:Phase:TD
-            %             Offset6=-40;
-            %             this.uiePhaseStepsTD.build  (uitTD, 10, 60+Offset6, 250, 20);
-            %             this.uieLowPass.build  (uitTD, 200, 105+Offset6, 130, 20);
-            %             this.uipFTType.build        (uitTD, 10, 100+Offset6, 150, 20);
-            %             this.uibTDLoadPhaseStepsTD.build ...
-            %                 (uitTD, 270, 60 + 13+Offset6, 100, 20);
+            this.uitIteration.build           (this.hpPhase, 300, 20, 250, 20);
+            this.uieAlpha.build           (this.hpPhase, 420, 90, 70, 20);
+            this.uieBeta.build           (this.hpPhase, 500, 90, 70, 20);
+            this.uieMaxIteration.build           (this.hpPhase, 420, 50, 70, 20);
+            this.uieAccuracy.build           (this.hpPhase, 500, 50, 70, 20);
+            % Control: Reconstruction: rPIE
+            this.uieGamma.build           (uitRPIE, 20, 20, 100, 20);
             
+            % Control: Reconstruction: RAAR
+            this.uieDelta.build           (uitRAAR, 20, 20, 100, 20);
             
-            % Controls: Reconstruction
+            %% Controls: Analysis
             this.hpAnalysis = uipanel(...
                 'Parent', this.hpControls,...
                 'Units', 'pixels',...
@@ -2606,41 +2695,41 @@ classdef PIE_Analyze < mic.Base
                 'Position', [10 10 600 170] ...
                 );
             drawnow
-            Offset7=-30;
-            this.uitgReconstructionType.build(this.hpAnalysis, 10, 25, 250, 135);
-            drawnow
-            
-            uitRim  = this.uitgReconstructionType.getTabByName('Rimmer');
-            uitDB   = this.uitgReconstructionType.getTabByName('Derivative Basis');
-            uitFT   = this.uitgReconstructionType.getTabByName('Fourier');
-            this.uitgReconstructionType.selectTabByName('Derivative Basis');
-            
-            
-            
-            
-            this.uipRimmerType.build    (uitRim, 10, 50+Offset7, 200, 20);
-            
-            this.uicbAutoLoadRim.build  (uitRim, 10, 100+Offset7, 200, 20);
-            
-            this.uieNZernikesBasis.build(uitDB, 10, 50+Offset7, 100, 20);
-            this.uicbAutoLoadDB.build   (uitDB, 10, 100+Offset7, 200, 20);
-            
-            this.uicbAutoLoadFT.build   (uitFT, 10, 100+Offset7, 200, 20);
-            this.uicbOrthogonalization.build   (uitFT, 140, 100+Offset7, 200, 20);
-            this.uipFittingType.build    (uitFT, 10, 50+Offset7, 200, 20);
-            
-            Offset8=20;
-            this.uieNZernikes.build     (this.hpAnalysis, 415, 70+Offset8, 80, 20);
-            this.uibReconstruct.build   (this.hpAnalysis, 415, 120+Offset8, 160, 20);
-            this.uicbRemoveTiltX.build  (this.hpAnalysis, 280, 40+Offset8, 100, 20);
-            this.uicbRemoveTiltY.build  (this.hpAnalysis, 280, 80+Offset8, 100, 20);
-            this.uicbRemoveDefocus.build(this.hpAnalysis, 280, 120+Offset8, 120, 20);
-            
-            this.uicbScaledNW.build  (this.hpAnalysis, 280, 20, 160, 20);
-            this.uipReconUnit.build  (this.hpAnalysis, 415, 45, 100, 20);
-            this.uicbResidualError.build  (this.hpAnalysis, 415, 20, 100, 20);
-            
-            drawnow
+%             Offset7=-30;
+%             this.uitgReconstructionType.build(this.hpAnalysis, 10, 25, 250, 135);
+%             drawnow
+%             
+%             uitRim  = this.uitgReconstructionType.getTabByName('Rimmer');
+%             uitDB   = this.uitgReconstructionType.getTabByName('Derivative Basis');
+%             uitFT   = this.uitgReconstructionType.getTabByName('Fourier');
+%             this.uitgReconstructionType.selectTabByName('Derivative Basis');
+%             
+%             
+%             
+%             
+%             this.uipRimmerType.build    (uitRim, 10, 50+Offset7, 200, 20);
+%             
+%             this.uicbAutoLoadRim.build  (uitRim, 10, 100+Offset7, 200, 20);
+%             
+%             this.uieNZernikesBasis.build(uitDB, 10, 50+Offset7, 100, 20);
+%             this.uicbAutoLoadDB.build   (uitDB, 10, 100+Offset7, 200, 20);
+%             
+%             this.uicbAutoLoadFT.build   (uitFT, 10, 100+Offset7, 200, 20);
+%             this.uicbOrthogonalization.build   (uitFT, 140, 100+Offset7, 200, 20);
+%             this.uipFittingType.build    (uitFT, 10, 50+Offset7, 200, 20);
+%             
+%             Offset8=20;
+%             this.uieNZernikes.build     (this.hpAnalysis, 415, 70+Offset8, 80, 20);
+%             this.uibReconstruct.build   (this.hpAnalysis, 415, 120+Offset8, 160, 20);
+%             this.uicbRemoveTiltX.build  (this.hpAnalysis, 280, 40+Offset8, 100, 20);
+%             this.uicbRemoveTiltY.build  (this.hpAnalysis, 280, 80+Offset8, 100, 20);
+%             this.uicbRemoveDefocus.build(this.hpAnalysis, 280, 120+Offset8, 120, 20);
+%             
+%             this.uicbScaledNW.build  (this.hpAnalysis, 280, 20, 160, 20);
+%             this.uipReconUnit.build  (this.hpAnalysis, 415, 45, 100, 20);
+%             this.uicbResidualError.build  (this.hpAnalysis, 415, 20, 100, 20);
+%             
+%             drawnow
             % Set hsa offset:
             this.hsaInterferogram.setAxesOffset([dTgPx + uitData.Position(1), dTgPy + uitData.Position(2)]);
             

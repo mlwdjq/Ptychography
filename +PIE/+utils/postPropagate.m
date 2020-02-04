@@ -5,13 +5,14 @@ function output = postPropagate (input,propagator,H,preShift)
 % propagator: one of 'fourier', 'fresnel' or 'angular spectrum'
 % H: frequency responds function
 % output: the propagated wavefront
+[ysize,xsize]=size(input);
 if nargin==4&&preShift == 1
     switch propagator
         case 'fourier'
             if H>0
-                output = fftshift(fft2(fftshift(input)));
+                output = fftshift(fft2(fftshift(input)))/sqrt(ysize*xsize);
             else
-                output = ifftshift(ifft2(ifftshift(input)));
+                output = ifftshift(ifft2(ifftshift(input)))*sqrt(ysize*xsize);
             end
         case 'angular spectrum'
             % Compute FFT of input
