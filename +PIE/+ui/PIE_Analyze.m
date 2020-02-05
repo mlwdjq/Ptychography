@@ -620,8 +620,97 @@ classdef PIE_Analyze < mic.Base
                     % Need to recenter data
                     this.handleLoadData();
                 case this.uibLoadProbe
+                    cDataDir = fullfile(this.cAppPath,  '..', '..', 'Data','probe');
+                    [fn,pn]=uigetfile({'*.mat','Probe (*.mat)'},'Loading',cDataDir);
+                    fileformat=fn(end-2:end);
+                    filename= strcat(pn,fn);
+                    switch fileformat
+                        case 'mat'
+                            load(filename);
+                    end
+                    N           = this.uieRes.get();
+                    [m,n] = meshgrid(linspace(0,1,N));
+                    [sr,sc]= size(probe);
+                    [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
+                    
+                    initialGuess = this.uicbGuess.get();
+                    if initialGuess
+                        this.dProbeGuess = interp2(p,q,probe,m,n);
+                    else
+                        this.dProbe = interp2(p,q,probe,m,n);
+                    end
+                    if initialGuess
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8GUESS);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8GUESS, []);
+                        % Set state:
+                        this.setState(this.U8STATE_GUESS_PROCESSED);
+                    else
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8PROBEOBJECT, []);
+                        % Set state:
+                        this.setState(this.U8STATE_PHASE_PROCESSED);
+                    end
                     
                 case this.uibLoadObject
+                    cDataDir = fullfile(this.cAppPath,  '..', '..', 'Data','object');
+                    [fn,pn]=uigetfile({'*.mat','Object (*.mat)'},'Loading',cDataDir);
+                    fileformat=fn(end-2:end);
+                    filename= strcat(pn,fn);
+                    switch fileformat
+                        case 'mat'
+                            load(filename);
+                    end
+                    N           = this.uieRes.get();
+                    lambda_um   = this.uieLambda.get()/1000;     
+                    z_um       = this.uiez2.get()*1000;
+                    scanRange_um  = this.uieScanRange.get()*1000;
+                    detSize_um  = this.uieDetSize.get()*1000;
+                    propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                    dc_um       = detSize_um/N; % detector pixel pitch
+                    samplingFactor_det = lambda_um.*z_um/(dc_um*N*dc_um);
+                    if samplingFactor_det>1
+                        fprintf('Please adjust configurations for propagation sampling\n');
+                    end
+                    if strcmp(propagator,'fourier')
+                        do_um = lambda_um*z_um/N/dc_um;
+                    else
+                        do_um = dc_um; % object pixel pitch
+                    end
+                    K = round(scanRange_um/do_um)+N;
+                    L = round(scanRange_um/do_um)+N; % size of object [K,L]
+                    if K>2000
+                        fprintf('object sampling: %d, please adjust scanning range\n',K);
+                        return;
+                    end
+                    [m,n] = meshgrid(linspace(0,1,L),linspace(0,1,K));
+                    [sr,sc]= size(object);
+                    [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
+                    
+                    initialGuess = this.uicbGuess.get();
+                    if initialGuess
+                        this.dObjectGuess = interp2(p,q,object,m,n);
+                    else
+                        this.dObject = interp2(p,q,object,m,n);
+                    end
+                    if initialGuess
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8GUESS);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8GUESS, []);
+                        % Set state:
+                        this.setState(this.U8STATE_GUESS_PROCESSED);
+                    else
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8PROBEOBJECT, []);
+                        % Set state:
+                        this.setState(this.U8STATE_PHASE_PROCESSED);
+                    end
                     
                 case this.uibGenProbeObject
                     this.generateProbeObject();
@@ -903,6 +992,7 @@ classdef PIE_Analyze < mic.Base
             df_um       = this.uiez1.get()*1000;% negative sign corresponds convergent
             z_um       = this.uiez2.get()*1000;
             scanRange_um  = this.uieScanRange.get()*1000;
+            zernCouples = eval(this.uieZrn.get());
             scanSteps  = this.uieScanSteps.get();
             detSize_um  = this.uieDetSize.get()*1000;
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
@@ -916,6 +1006,19 @@ classdef PIE_Analyze < mic.Base
             else
                 do_um = dc_um; % object pixel pitch
             end
+            
+            % generate probe phase based on zernike polynomials
+            zfn         =   PIE.utils.generateZernikeFunction(zernCouples,N,1); % generate zernike function form based on zernike couples
+            [x_um,y_um] = meshgrid(linspace(-detSize_um,detSize_um,N));
+            if NA>0
+                r = sin(atan(sqrt(x_um.^2+y_um.^2)/(z_um+df_um)))/NA;
+                th = atan2(y_um,x_um);
+            else
+                r = sqrt(x_um.^2+y_um.^2)/Rc_um;
+                th = atan2(y_um,x_um);
+            end
+            probe_pha = 2*pi*zfn(r,th);
+            
             %% initial probe
             switch probeType
                 case 'Defocus wave'
@@ -926,12 +1029,12 @@ classdef PIE_Analyze < mic.Base
                     n1 = n1-N/2-1;
                     n2 = n2-N/2-1;
                     Hs= exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));
-                    probe = PIE.utils.Propagate (pinhole(round(2*Rc_um/dc_um),N,N).*Hs,propagator,...
+                    probe = PIE.utils.Propagate (pinhole(round(2*Rc_um/dc_um),N,N).*Hs.*exp(1i*probe_pha),propagator,...
                         do_um,lambda_um,-df_um);
                 case 'Plane wave'
                     Rprobe_um = Rc_um;
                     samplingFactor_obj = lambda_um.*abs(df_um)/(N*do_um*do_um);
-                    probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N),propagator,...
+                    probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N).*exp(1i*probe_pha),propagator,...
                         do_um,lambda_um,abs(df_um));
             end
             if initialGuess
@@ -977,8 +1080,8 @@ classdef PIE_Analyze < mic.Base
                 this.dObject = object;
             end
             
-            % Make phase tab active:
-            this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
+%             % Make phase tab active:
+%             this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
             
             
             if initialGuess
