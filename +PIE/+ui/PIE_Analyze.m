@@ -242,6 +242,7 @@ classdef PIE_Analyze < mic.Base
         uieBeta
         uieMaxIteration
         uieAccuracy
+        uicbCorrectPos
         % Controls: Reconstruction: rPIE
         uieGamma
         
@@ -482,6 +483,8 @@ classdef PIE_Analyze < mic.Base
             % Controls: Reconstruction: rPIE
             this.uieGamma                = mic.ui.common.Edit('cLabel', 'Gamma', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieGamma.set(0.2);
+            this.uicbCorrectPos = mic.ui.common.Checkbox('cLabel', 'Correct position',  'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uicbCorrectPos.set(false);
             
             % Controls: Reconstruction: RAAR
             this.uieDelta                = mic.ui.common.Edit('cLabel', 'Delta', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -1312,6 +1315,8 @@ classdef PIE_Analyze < mic.Base
             if isempty(this.dObjectGuess)
                 KL = round(this.uieScanRange.get()*1000./do_um)+N;
                 this.dObjectGuess = ones(KL);
+            else
+                KL = length(this.dObjectGuess);
             end
             this.dProbeRecon =this.dProbeGuess;
             this.dObjectRecon =this.dObjectGuess;
@@ -1330,6 +1335,12 @@ classdef PIE_Analyze < mic.Base
             beta = this.uieBeta.get(); % weight factor for updating probe
             gamma = this.uieGamma.get(); % weight factor for rPIE, 1 for ePIE
             delta = this.uieDelta.get(); % weight factor for RAAR, 1 for DM
+            correctPos = this.uicbCorrectPos.get();
+            Cpix = zeros(scanSteps^2,2);
+            nC = 10;
+            rCpix = floor((max(Rpix(:,1))-min(Rpix(:,1)))/(scanSteps-1)/2);
+            detectorWaveTry = zeros(N,N,nC);
+            posError = zeros(nC,1);
             if strcmp(cAnalysisDomain,'WDD')
                 I_set_u_R = reshape(measurements,N,N,scanSteps,scanSteps);
                 I_set_R_u= permute(I_set_u_R,[3, 4, 1, 2]);
@@ -1346,21 +1357,48 @@ classdef PIE_Analyze < mic.Base
                 tempError = 0;
                 switch cAnalysisDomain
                     case 'rPIE' % scanning solution
-                        for j =1:scanSteps
-                            for k =1:scanSteps
-                            reconBox = this.dObjectRecon(Rm(j)+[1:N],Rn(k)+[1:N]);
-%                              figure(4),imagesc(atan2(imag(this.dObjectRecon),real(this.dObjectRecon))),axis tight equal ;
-%                             title('object amplitude');drawnow;pause(1)
-                            exitWave = reconBox.*this.dProbeRecon;
-                            [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,this.ceInt{j,k},...
-                                propagator,H,Hm,1);
-                            tempProbe = this.dProbeRecon;
-                            denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
-                            newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
-                            denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
-                            this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
-                            this.dObjectRecon(Rm(j)+[1:N],Rn(k)+[1:N]) = newReconBox;
-                            tempError = tempError + abs(this.ceInt{j,k}-abs(detectorWave)).^2;
+                        for j =1:scanSteps^2
+                            if correctPos==1 % apply position correction
+                                randPix= [[0,0];round(rCpix*(rand(nC-1,2)-0.5))]; % generate rand searching pixel within the radius rCpix
+                                RpixTry = Rpix(j,:) + Cpix(j,:) + randPix;
+                                RpixTry( RpixTry <= 0 | RpixTry+N>KL) = 0;
+                                % find the best position by comparing the diffraction intensity
+                                for m =1:nC
+                                    reconBox = this.dObjectRecon(RpixTry(m,1)+[1:N],RpixTry(m,2)+[1:N]);
+                                    exitWave = reconBox.*this.dProbeRecon;
+                                    detectorWaveTry(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,1);
+                                    temp = (abs(detectorWaveTry(:,:,m))-sqrtInt(:,:,j)).^2;
+                                    posError(m) = sum(temp(:));
+                                end
+                                [~,m0] = min(posError);
+                                Cpix(j,:) = randPix(m0,:);
+                                % update probe and object using new position
+                                detectorWave=detectorWaveTry(:,:,m0);
+                                reconBox = this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]);
+                                exitWave = reconBox.*this.dProbeRecon;
+                                correctedWave = sqrtInt(:,:,j).*detectorWave./(abs(detectorWave)+eps);
+                                exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,1);
+                                tempProbe = this.dProbeRecon;
+                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
+                                newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
+                                denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
+                                this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
+                                this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]) = newReconBox;
+                                tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
+                            else
+                                reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
+                                %                              figure(4),imagesc(atan2(imag(this.dObjectRecon),real(this.dObjectRecon))),axis tight equal ;
+                                %                             title('object amplitude');drawnow;pause(1)
+                                exitWave = reconBox.*this.dProbeRecon;
+                                [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt(:,:,j),...
+                                    propagator,H,Hm,1);
+                                tempProbe = this.dProbeRecon;
+                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
+                                newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
+                                denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
+                                this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
+                                this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
+                                tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
                             end
                         end
                     case 'RAAR' % batch scanning solution
@@ -1428,16 +1466,17 @@ classdef PIE_Analyze < mic.Base
                 end
                 % error evaluation
                 errors(i) = sum(tempError(:))/sum(sum(sum(sqrtInt)));
-                if strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
-                    % Plot wavefronts on phase tab
-                    this.replot(this.U8RECONSTRUCTION, []);
-                    
-                end
+                
                 iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
                 this.uitIteration.set(iterationStr);drawnow;
                 
                 if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<this.uieAccuracy.get()))
+                    % Plot wavefronts on phase tab
+                    this.replot(this.U8RECONSTRUCTION, []);
                     break;
+                elseif strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
+                    % Plot wavefronts on phase tab
+                    this.replot(this.U8RECONSTRUCTION, []);
                 end
             end
             
@@ -2783,6 +2822,7 @@ classdef PIE_Analyze < mic.Base
             this.uieAccuracy.build           (this.hpPhase, 500, 50, 70, 20);
             % Control: Reconstruction: rPIE
             this.uieGamma.build           (uitRPIE, 20, 20, 100, 20);
+            this.uicbCorrectPos.build           (uitRPIE, 200, 20, 100, 20);
             
             % Control: Reconstruction: RAAR
             this.uieDelta.build           (uitRAAR, 20, 20, 100, 20);
