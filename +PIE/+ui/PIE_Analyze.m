@@ -10,7 +10,8 @@ classdef PIE_Analyze < mic.Base
         U8PROBEOBJECT       = 2
         U8GUESS             = 3
         U8RECONSTRUCTION    = 4
-        U8LOG    = 5
+        U8ANALYSIS          = 5
+        U8LOG    = 6
         
         % Meta flags
         U8DOMAIN_REAL       = 1
@@ -45,7 +46,7 @@ classdef PIE_Analyze < mic.Base
         u8State % Keeps track of where we are in reconstruction
         ceUIBStateControlled % List of state-controlled uibuttons
         
-        % Main interferogram(s)
+        % Main diffraction pattern(s)
         ceInt_0 % reset int values
         ceIntR = {} % processed (cropped, binned rotated)
         ceInt = {} % processed (cropped, binned rotated)
@@ -65,12 +66,7 @@ classdef PIE_Analyze < mic.Base
         dReconstructed
         dZernike
         dZernikeResidual
-        dWx
-        dWy
-        dWxNoTilt
-        dWyNoTilt
-        dWxUnwrapped
-        dWyUnwrapped
+        
         dResult
         dProbe
         dObject
@@ -79,13 +75,12 @@ classdef PIE_Analyze < mic.Base
         dProbeRecon
         dObjectRecon
         
-        % Shear guides
+        % pupil guides
         dBeamWidthEstPx = 1
-        dShearPix = 1
         dObstructionWidthEstPx
-        dObstructionShearPix
-        % Axes tab group
-        uitgAxesDisplay     % displays axes: Interferogram, Phase, Reconstruction
+        
+        %% Axes tab group
+        uitgAxesDisplay     % displays axes: diffraction pattern, probe and pbject, pnitial guess, reconstruction, analysis, log
         
         % Axes: Data
         hsaInterferogram
@@ -120,18 +115,12 @@ classdef PIE_Analyze < mic.Base
         % Axes: Analysis
         haAnalysis
         haZernikeDecomp
-        uicbRemoveSphere
-        uitxWFE
-        uicbRemoveTiltX
-        uicbRemoveTiltY
-        uicbRemoveDefocus
-        uicbScaledNW
         uitRMS
-        uitRMSFit
+        
         % Axes: Log
         htLog
         
-        % Controls
+        %% Controls
         hpControls
         hpAnalysisSetup
         hpLoadInterferogram
@@ -151,7 +140,6 @@ classdef PIE_Analyze < mic.Base
         uieCenterObstruction
         uieBinning
         
-        
         % Controls:Data
         hpData
         uitgSelectDataSource
@@ -164,13 +152,11 @@ classdef PIE_Analyze < mic.Base
         uipSelectMask
         uibLoadMask
         
-        % Controls:Data:Load interferogram single/stack
+        % Controls:Data:Load diffraction pattern single/stack
         uibLoadSingleFromLog
         uibLoadSingleFromImg
         uibLoadStackFromLog
-        
         uipDataType
-        
         uibLoadROI
         uipROIs
         
@@ -252,46 +238,8 @@ classdef PIE_Analyze < mic.Base
         % Controls: Reconstruction: RAAR
         uieDelta
         
-        % Controls:Phase:FD
-        uieFilterWidth
-        uipWindowFunction
-        
-        % Controls:Phase:TD
-        uiePhaseStepsTD
-        uipFTType
-        uieLowPass
-        uieTDZ1
-        uibTDLoadPhaseStepsTD
-        
+
         % Controls:Analysis
-        uitgReconstructionType
-        uieNZernikes
-        uibReconstruct
-        uipReconUnit
-        uicbResidualError
-        
-        
-        % ...:Reconstruction:Rimmer
-        uipRimmerType
-        uicbAutoLoadRim
-        % ...:Reconstruction:Derivative Basis
-        
-        uicbAutoLoadDB
-        uieNZernikesBasis
-        
-        % ...:Reconstruction:Fourier
-        uipFittingType
-        uicbAutoLoadFT
-        uicbOrthogonalization
-        
-        
-        
-        
-        uitgLoadType
-        uiPSSimulationRecaller
-        
-        
-        hAx % cell array of axes
         
         
     end
@@ -306,13 +254,12 @@ classdef PIE_Analyze < mic.Base
         end
         
         
-        
         function init(this)
             
             this.uitgAxesDisplay = ...
                 mic.ui.common.Tabgroup('ceTabNames', {'Data', 'Probe and object','Initial guess', 'Reconstruction','Analysis','Log'});
             
-            % Axes:
+            %% Axes:
             this.hsaInterferogram = mic.ui.axes.ScalableAxes(...
                 'fhOnDomainChange', @(cDomain)this.replot(this.U8DATA,  cDomain));
             this.uibLeft        = mic.ui.common.Button('cText', '<', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -321,12 +268,9 @@ classdef PIE_Analyze < mic.Base
             this.uitMetaInfo    = mic.ui.common.Text('cVal', '');
             
             this.uitRMS                 = mic.ui.common.Text('cVal','RMS:');
-            this.uitRMSFit                 = mic.ui.common.Text('cVal','RMSFit:');
-            this.uitIteration               = mic.ui.common.Text('cVal','');
             
-            %this.uitRMS.cVal([]);
             
-            % Controls: Experiment setup panel
+            %% Controls: Experiment setup panel
             this.uieLambda      = mic.ui.common.Edit('cLabel', 'Lambda (nm)', 'cType', 'd');
             this.uieScanRange   = mic.ui.common.Edit('cLabel', 'Scan range (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieNA          = mic.ui.common.Edit('cLabel', 'NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
@@ -356,9 +300,9 @@ classdef PIE_Analyze < mic.Base
                 'hGetCallback', @()this.prGetters(this.prControlsSetup), ...
                 'hSetCallback', @(dRecall)this.prSetters(this.prControlsSetup, dRecall));
             
-            % Controls: Data panel
+            %% Controls: Data panel
             this.uitgSelectDataSource = ...
-                mic.ui.common.Tabgroup('ceTabNames', {'Load Interferogram', 'Load P/S Series', 'Simulation','Probe and object', 'Sim stochastics'});
+                mic.ui.common.Tabgroup('ceTabNames', {'Load patterns', 'Load P/S Series', 'Simulation','Probe and object', 'Sim stochastics'});
             
             this.uieCCDCenter       = mic.ui.common.Edit('cLabel', 'CCD Center pixel', 'cType', 'c', ...
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
@@ -467,9 +411,10 @@ classdef PIE_Analyze < mic.Base
             this.uieNonlinearity       = mic.ui.common.Edit('cLabel', 'Nonlinearity (a,b)', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieAirflow       = mic.ui.common.Edit('cLabel', 'Airflow', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieNonlinearity.set('[0, 0]');
-            % Controls: Reconstruction
-            this.uitgAnalysisDomain = mic.ui.common.Tabgroup('ceTabNames', {'rPIE', 'RAAR', 'WDD'});
             
+            %% Controls: Reconstruction
+            this.uitIteration               = mic.ui.common.Text('cVal','');
+            this.uitgAnalysisDomain = mic.ui.common.Tabgroup('ceTabNames', {'rPIE', 'RAAR', 'WDD'});
             this.uipUnwrapEngine        = mic.ui.common.Popup('cLabel', 'Unwrapping algorithm', 'ceOptions', {'Sorting reliability unwrap'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibComputePhase        = mic.ui.common.Button('cText', 'Reconstruction',  'fhDirectCallback', @(src, evt)this.cb(src));
@@ -495,63 +440,12 @@ classdef PIE_Analyze < mic.Base
             this.uieDelta                = mic.ui.common.Edit('cLabel', 'Delta', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieDelta.set(0.1);
             
-            % Controls:Phase:TD
-            this.uiePhaseStepsTD        = mic.ui.common.Edit('cLabel', 'Phase steps [N X 2]', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieLowPass             = mic.ui.common.Edit('cLabel', 'Low pass (N*Ws,0=none)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+          
+            %% Controls:Analysis
             
-            this.uipFTType              = mic.ui.common.Popup('cLabel', 'Fourier Transform Type', 'ceOptions', {'FFT (uniform steps)', 'DFT (custom steps)'}, ...
-                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uibTDLoadPhaseStepsTD  = mic.ui.common.Button('cText', 'Load Phase steps', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uiePhaseStepsTD.set('[]');
+
             
-            this.uieFDZ1                = mic.ui.common.Edit('cLabel', 'Z1', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uitGramRot          = mic.ui.common.Text('cVal','Gram Rot:0degree');
-            this.uieFDZ1.set(1);
-            % Controls:Phase:FD
-            this.uipWindowFunction      = mic.ui.common.Popup('cLabel', 'Filter type', 'ceOptions', {'Gauss', 'Hanning'}, ...
-                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uieFilterWidth          = mic.ui.common.Edit('cLabel', 'Filter width', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieFilterWidth.set(0.1);
-            
-            % Controls:Reconstruction
-            this.uitgReconstructionType = mic.ui.common.Tabgroup('ceTabNames', {'Rimmer', 'Derivative Basis','Fourier'});
-            
-            this.uipRimmerType          = mic.ui.common.Popup('cLabel', 'Rimmer type', 'ceOptions', {'2X downsample', 'Double shear'}, ...
-                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            
-            this.uipFittingType         = mic.ui.common.Popup('cLabel', 'Fitting Type', 'ceOptions', {'Reconstructed wavefront', 'Shearing wavefronts'}, ...
-                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            
-            this.uicbAutoLoadRim        = mic.ui.common.Checkbox('cLabel', 'Auto save/load matrix',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbAutoLoadDB         = mic.ui.common.Checkbox('cLabel', 'Auto save/load basis',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbAutoLoadFT         = mic.ui.common.Checkbox('cLabel', 'Auto save/load basis',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbOrthogonalization         = mic.ui.common.Checkbox('cLabel', 'Orthogonalization',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieNZernikes           = mic.ui.common.Edit('cLabel', 'N Zernikes', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uipReconUnit        = mic.ui.common.Popup('cLabel', 'Unit', 'ceOptions', {'Wave','mWave','nm'}, ...
-                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uibReconstruct         = mic.ui.common.Button('cText', 'Reconstruct', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieNZernikesBasis      = mic.ui.common.Edit('cLabel', 'Zernike basis order', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbRemoveTiltX        = mic.ui.common.Checkbox('cLabel', 'Remove X tilt',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbRemoveTiltY        = mic.ui.common.Checkbox('cLabel', 'Remove Y tilt',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbRemoveDefocus      = mic.ui.common.Checkbox('cLabel', 'Remove defocus',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbResidualError      = mic.ui.common.Checkbox('cLabel', 'Residual error',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbScaledNW     = mic.ui.common.Checkbox('cLabel', 'Scaled null wavefront',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uicbRemoveTiltX.set(true);
-            this.uicbRemoveTiltY.set(true);
-            this.uicbRemoveDefocus.set(true);
-            this.uicbResidualError.set(false);
-            this.uicbScaledNW.set(true);
-            this.uieNZernikesBasis.set(24);
-            this.uieNZernikes.set(24);
-            this.uicbAutoLoadRim.set(true);
-            this.uicbAutoLoadDB.set(true);
-            this.uicbAutoLoadFT.set(true);
-            this.uicbOrthogonalization.set(false);
-            
-            % Look for most recent csv:
-            
-            
-            % Add buttons to state flag lists
+            %% Add buttons to state flag lists
             this.ceUIBStateControlled = {};
             
             this.ceUIBStateControlled{this.U8STATE_INITIAL} = ...
@@ -560,7 +454,7 @@ classdef PIE_Analyze < mic.Base
             this.ceUIBStateControlled{this.U8STATE_DATA_LOADED} = ...
                 {this.uibComputePhase};
             this.ceUIBStateControlled{this.U8STATE_PHASE_PROCESSED} = ...
-                {this.uibReconstruct};
+                {};
             this.ceUIBStateControlled{this.U8STATE_RECONSTRUCTED} = ...
                 {};
             this.ceUIBStateControlled{this.U8STATE_ANALYZED} = ...
@@ -618,7 +512,7 @@ classdef PIE_Analyze < mic.Base
                 case this.uibLoadMask
                     
                     
-                case {this.uieZrn, this.uiePhaseStepsTD, this.uieNonlinearity}
+                case {this.uieZrn, this.uieNonlinearity}
                     this.validateCouplesEditBox(src, '[]');
                     
                 case this.uieCCDCenter
@@ -954,10 +848,7 @@ classdef PIE_Analyze < mic.Base
                     
                     % Load phase steps for simulation
                 case this.uibLoadPhaseStepsSim
-                    
-                    % Load phase steps for TD analysis
-                case this.uibTDLoadPhaseStepsTD
-                    
+                 
                     
                     
                 case this.uieScanSteps
@@ -979,19 +870,13 @@ classdef PIE_Analyze < mic.Base
                 case this.uibStop
                     global stopSign
                     stopSign=1;
-                    
-                case this.uibReconstruct
-                    % this.reconstruct(this.uitgReconstructionType.getSelectedTabName());
-                    % call reconstruct functions here
-                    this.analyze(this.uitgReconstructionType.getSelectedTabName());
-                    
             end
         end
         
         function generateProbeObject(this)
+            % load parameters
             probeType = this.uipProbeType.getOptions{this.uipProbeType.getSelectedIndex()};
             objectType = this.uipObjectType.getOptions{this.uipObjectType.getSelectedIndex()};
-            
             initialGuess = this.uicbGuess.get();
             N           = this.uieRes.get();
             NA           = this.uieNA.get();
@@ -1088,10 +973,6 @@ classdef PIE_Analyze < mic.Base
                 this.dObject = object;
             end
             
-%             % Make phase tab active:
-%             this.uitgAxesDisplay.selectTabByIndex(this.U8PROBEOBJECT);
-            
-            
             if initialGuess
                 % Make phase tab active:
                 this.uitgAxesDisplay.selectTabByIndex(this.U8GUESS);
@@ -1115,9 +996,6 @@ classdef PIE_Analyze < mic.Base
             zrn = zrn(:);
             zrns = (0:length(zrn) - 1);
             zrns(2,:) = zrn';
-            
-            
-            
             this.uieZrn.set(mat2str(zrns'));
         end
         
@@ -1288,12 +1166,13 @@ classdef PIE_Analyze < mic.Base
         
         function reconstruct(this, cAnalysisDomain)
             if isempty(this.ceInt)
-                msgbox('Please load/simulate interferograms first!', 'Error');
+                msgbox('Please load/simulate diffraction patterns first!', 'Error');
                 return;
             end
             global stopSign
-            stopSign = 0;
+            stopSign = 0; % used for stopping iteration
             
+            % load parameter
             scanSteps               = this.uieScanSteps.get();
             lambda_um = this.uieLambda.get()/1000;
             z_um = this.uiez2.get()*1000;
@@ -1306,12 +1185,16 @@ classdef PIE_Analyze < mic.Base
             else
                 do_um = dc_um; % object pixel pitch
             end
+            
+            % precompute FFT
             H = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,z_um,1);
             Hm = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,-z_um,1);
+            
+            % generate scanning position
             dPosShifts = eval(this.uiePhaseStepsSim.get());
             Rm = round(dPosShifts(:,1)*1000/do_um);
             Rn = round(dPosShifts(:,2)*1000/do_um);
-%             Rpix = round([Rx_mm(:),Ry_mm(:)]*1000/do_um);
+
             if isempty(this.dProbeGuess)
                 this.dProbeGuess = pinhole(round(N/2),N,N);
             end
@@ -1332,6 +1215,7 @@ classdef PIE_Analyze < mic.Base
                     k=k+1;
                 end
             end
+            % initial reconstruction parameters
             iteration = this.uieMaxIteration.get();
             errors = zeros(iteration,1);
             alpha = this.uieAlpha.get(); % weight factor for updating object
@@ -1362,9 +1246,11 @@ classdef PIE_Analyze < mic.Base
                 Xa = G_set_u_U;
                 Q = G_set_u_U;
             end
+            
+            % iterations for reconstruction
             for i = 1:iteration
                 tempError = 0;
-                switch cAnalysisDomain
+                switch cAnalysisDomain % reconstruction method
                     case 'rPIE' % scanning solution
                         for j =1:scanSteps^2
                             if correctPos==1 % apply position correction
@@ -1415,6 +1301,8 @@ classdef PIE_Analyze < mic.Base
                                             posError(m) = sum(temp(:));
                                         end
                                         [~,m0] = min(posError);
+                                        
+                                        % restart searching 
                                         if all(abs(Cpix(j,:)+randPix(m0,:))<=rCpix0)
                                             Cpix(j,:) = Cpix(j,:)+randPix(m0,:);
                                         else % bad serach
@@ -1434,21 +1322,20 @@ classdef PIE_Analyze < mic.Base
                                 end
                                 % update probe and object using new position
                                 detectorWave=detectorWaveTry(:,:,m0);
-                                reconBox = this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]);
-                                exitWave = reconBox.*this.dProbeRecon;
-                                correctedWave = sqrtInt(:,:,j).*detectorWave./(abs(detectorWave)+eps);
-                                exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,1);
+                                reconBox = this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]); % get reconstruction region
+                                exitWave = reconBox.*this.dProbeRecon; % calculate exit wave
+                                correctedWave = sqrtInt(:,:,j).*detectorWave./(abs(detectorWave)+eps); % correct diffraction intensity
+                                exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,1); % update exitwave
+                                % update probe and object
                                 tempProbe = this.dProbeRecon;
-                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
+                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2; 
                                 newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
                                 denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
-                                this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
-                                this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]) = newReconBox;
+                                this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;% update object
+                                this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]) = newReconBox;% update probe
                                 tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
-                            else
+                            else % normal rPIE without position calibration
                                 reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                                %                              figure(4),imagesc(atan2(imag(this.dObjectRecon),real(this.dObjectRecon))),axis tight equal ;
-                                %                             title('object amplitude');drawnow;pause(1)
                                 exitWave = reconBox.*this.dProbeRecon;
                                 [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt(:,:,j),...
                                     propagator,H,Hm,1);
@@ -1469,7 +1356,7 @@ classdef PIE_Analyze < mic.Base
                                 exitWaves(:,:,j) = this.dProbeRecon.*reconBox;
                             end
                         end
-                        parfor j =1:scanSteps^2
+                        parfor j =1:scanSteps^2 % parallel compute scanning region
                             reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
                             waveToPropagate = 2*this.dProbeRecon.*reconBox-exitWaves(:,:,j);
                             [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(waveToPropagate,sqrtInt(:,:,j),...
@@ -1479,7 +1366,7 @@ classdef PIE_Analyze < mic.Base
                         end
                         this.dProbeRecon = PIE.utils.BatchProbeUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,beta);
                         this.dObjectRecon = PIE.utils.BatchObjectUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,alpha);
-                    case 'WDD' % Wigner distribution deconvolution
+                    case 'WDD' % Wigner distribution deconvolution 
                         % I_set(u,R), G_set(u,U), H_set(r,U), L_set(r,R)
                         for m = 1:N
                             for n = 1:N
@@ -1547,195 +1434,10 @@ classdef PIE_Analyze < mic.Base
         end
         
         
-        function analyze(this, cReconstructionType)
-            if isempty(this.dWx)||isempty(this.dWy)
-                msgbox('Please process phase first!', 'Error');
-                return;
-            end
-            RimmerType  = this.uipRimmerType.getSelectedIndex();
-            FittingType  = this.uipFittingType.getSelectedIndex();
-            N           = this.uieRes.get();
-            lambda_um   = this.uieLambda.get()/1000;
-            T_um        = this.uieScanRange.get();
-            %z1_um       = this.uiez1.get();
-            z1_um       = this.uieFDZ1.get();
-            z2_mm       = this.uiez2.get();
-            alpha       = this.uieGratTilt.get() * pi/180;
-            gamma       = this.uieDetTilt.get() * pi/180;
-            NA          = this.uieNA.get();
-            detSize     = this.uieDetSize.get();
-            dZernOrder  = this.uieNZernikes.get();
-            zernCouples = eval(this.uieZrn.get());
-            dZrnRef     = zeros(dZernOrder,1);
-            for j=1:size(zernCouples,1)
-                if zernCouples(j,1)>0&&zernCouples(j,1)<=dZernOrder
-                    dZrnRef(zernCouples(j,1))=zernCouples(j,2);
-                end
-            end
-            
-            
-            ceAnalysisParas={lambda_um*1000,T_um,NA,z2_mm,this.uieGratTilt.get(),this.uieDetTilt.get(),...
-                this.uieGlobalRot.get(),detSize,this.uieCenterObstruction.get(),this.uieBinning.get(),...
-                this.uipDataType.getSelectedIndex(),eval(this.uieCCDCenter.get()),eval(this.uieObsOffset.get()), this.uipSelectMask.getSelectedIndex(),...
-                this.uitgAnalysisDomain.getSelectedTabName(),this.uipUnwrapEngine.getSelectedIndex(),...
-                z1_um,eval(this.uiePhaseStepsTD.get()),this.uipFTType.getSelectedIndex(),...
-                this.uieFilterWidth.get(),this.uipWindowFunction.getSelectedIndex(),...
-                this.uitgReconstructionType.getSelectedTabName(),this.uieNZernikes.get(),...
-                this.uipRimmerType.getSelectedIndex(),this.uicbAutoLoadRim.get(),...
-                this.uicbAutoLoadDB.get(),this.uicbAutoLoadFT.get(),this.uieNZernikesBasis.get(),...
-                this.uicbRemoveTiltX.get(),this.uicbRemoveTiltY.get(),this.uicbRemoveDefocus.get(),...
-                this.uicbScaledNW.get()};
-            
-            if N~=length(this.dWx)
-                N=length(this.dWx);
-            end
-            z1r=round(z1_um);
-            if z1r==0&&z1_um>0
-                z1r=0.1;
-            elseif z1r==0&&z1_um<0
-                z1r=-0.1;
-            elseif z1_um==0
-                z1r=0;
-            end
-            
-            % Check to see if bases folder exists:
-            cBasisFolder = fullfile(this.cAppPath , '..','..' ,'bases');
-            if  isempty(dir(cBasisFolder))
-                mkdir(cBasisFolder)
-            end
-            
-            switch cReconstructionType
-                case 'Rimmer'
-                    lAutoLoad = this.uicbAutoLoadRim.get();
-                    if lAutoLoad
-                        cBasisName = sprintf('RimmerBasis,%d,%0.1f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.2f,%0.3f', ...
-                            N, lambda_um, T_um, z1r, z2_mm, alpha, gamma, NA, detSize);
-                        cBasisName(cBasisName == '.') = '_';
-                        cBasisName=strcat(cBasisName,'.mat');
-                        % Look for a basis using these params
-                        cBasisPath = fullfile(this.cAppPath ,'..', '..','bases', cBasisName);
-                        ceFls = dir(cBasisPath);
-                        if ~isempty(ceFls)
-                            stBasis=load(cBasisPath);
-                        else
-                            stBasis = [];
-                        end
-                        [dW,dZrn,ceBasisVectors,RMSFit] = ...
-                            lsianalyze.utils.reconstructByRimmer(...
-                            this.dWx, this.dWy, RimmerType, this.dAnalysisRegion,this.dAnalysisRegion2, ...
-                            lambda_um, T_um, NA, z1_um, z2_mm, N,dZernOrder,alpha,gamma,detSize,stBasis,this.uicbScaledNW.get());
-                        save(cBasisPath,'ceBasisVectors');
-                    else
-                        stBasis = [];
-                        [dW,dZrn,~,RMSFit] = ...
-                            lsianalyze.utils.reconstructByRimmer(...
-                            this.dWx, this.dWy, RimmerType, this.dAnalysisRegion,this.dAnalysisRegion2, ...
-                            lambda_um, T_um, NA, z1_um, z2_mm, N,dZernOrder,alpha,gamma,detSize,stBasis,this.uicbScaledNW.get());
-                    end
-                    
-                case 'Derivative Basis'
-                    lAutoLoad = this.uicbAutoLoadDB.get();
-                    
-                    if lAutoLoad
-                        % Generate basis name:
-                        cBasisName = sprintf('BetaBasis,%d,%d,%0.1f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.2f,%0.3f', ...
-                            N, dZernOrder, lambda_um, T_um, z1r, z2_mm, alpha, gamma, NA, detSize);
-                        
-                        cBasisName(cBasisName == '.') = '_';
-                        cBasisName=strcat(cBasisName,'.mat');
-                        
-                        % Look for a basis using these params
-                        
-                        
-                        cBasisPath = fullfile(this.cAppPath , '..','..' ,'bases', cBasisName);
-                        ceFls = dir(cBasisPath);
-                        if ~isempty(ceFls)
-                            stBasis=load(cBasisPath);
-                        else
-                            stBasis = [];
-                        end
-                        
-                        [dZrn,ceBasisVectors,RMSFit]    = ...
-                            lsianalyze.utils.reconstructByDerivativeBasis( ...
-                            this.dWx, this.dWy, dZernOrder, this.dAnalysisRegion,this.dAnalysisRegion2, ...
-                            lambda_um, NA, T_um, z1_um, z2_mm, N, alpha, gamma, detSize,stBasis,this.uicbScaledNW.get());
-                        save(cBasisPath,'ceBasisVectors');
-                        
-                    else
-                        % Call vanilla DBRecon
-                        stBasis = [];
-                        [dZrn,~,RMSFit]   = ...
-                            lsianalyze.utils.reconstructByDerivativeBasis( ...
-                            this.dWx, this.dWy, dZernOrder, this.dAnalysisRegion,this.dAnalysisRegion2, ...
-                            lambda_um, NA, T_um, z1_um, z2_mm, N, alpha, gamma,detSize,stBasis,this.uicbScaledNW.get() );
-                    end
-                case 'Fourier'
-                    lAutoLoad = this.uicbAutoLoadFT.get();
-                    orthogonalization = this.uicbOrthogonalization.get();
-                    if lAutoLoad
-                        % Generate basis name:
-                        cBasisName = sprintf('FourierBasis,%d,%d,%0.1f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.2f,%0.3f', ...
-                            N, dZernOrder, lambda_um, T_um, z1r, z2_mm, alpha, gamma, NA, detSize);
-                        
-                        cBasisName(cBasisName == '.') = '_';
-                        cBasisName=strcat(cBasisName,'.mat');
-                        
-                        % Look for a basis using these params
-                        cBasisPath = fullfile(this.cAppPath ,'..','..','bases', cBasisName);
-                        ceFls = dir(cBasisPath);
-                        if ~isempty(ceFls)
-                            stBasis=load(cBasisPath);
-                            fprintf('Found a Fourier basis for given parameters, using it!\n');
-                        else
-                            stBasis = [];
-                            fprintf('No Fourier basis with these parameters was found, generating one now...\n');
-                        end
-                        
-                        [FTPhase,dZrn,ceBasisVectors,RMSFit]    = ...
-                            lsianalyze.utils.reconstructByFourier( ...
-                            this.dWx, this.dWy, dZernOrder, this.dAnalysisRegion,this.dAnalysisRegion2, ...
-                            lambda_um, NA, T_um, z1_um, z2_mm, N, alpha, gamma, detSize,stBasis,this.uicbScaledNW.get(),...
-                            this.uicbRemoveTiltX.get(),this.uicbRemoveTiltY.get(),this.uicbRemoveDefocus.get(),FittingType,orthogonalization); %#ok<ASGLU>
-                        
-                        save(cBasisPath,'ceBasisVectors');
-                        
-                    else
-                        % Call vanilla DBRecon
-                        stBasis = [];
-                        [FTPhase,dZrn,~,RMSFit]   = ...
-                            lsianalyze.utils.reconstructByFourier( ...
-                            this.dWx, this.dWy, dZernOrder, this.dAnalysisRegion,this.dAnalysisRegion2, ...
-                            lambda_um, NA, T_um, z1_um, z2_mm, N, alpha, gamma,detSize,stBasis,this.uicbScaledNW.get(),...
-                            this.uicbRemoveTiltX.get(),this.uicbRemoveTiltY.get(),this.uicbRemoveDefocus.get(),FittingType,orthogonalization);
-                    end
-            end
-            %             dZrns=zerndecomp((abdom(pinhole(500), [0;dZrn])), dZernOrder );
-            %             dZrn=dZrns(2:end);
-            dZrn(1:3)  = dZrn(1:3).*[~this.uicbRemoveTiltX.get();~this.uicbRemoveTiltY.get();~this.uicbRemoveDefocus.get()];
-            dZrnRef(1:3)  = dZrnRef(1:3).*[~this.uicbRemoveTiltX.get();~this.uicbRemoveTiltY.get();~this.uicbRemoveDefocus.get()];
-            % set to waves for now:
-            
-            this.dZernike = dZrn;
-            this.dZernikeResidual = dZrn(:)-dZrnRef;
-            %             this.dZernike=  dZrn*lambda_um*1000;
-            
-            this.dReconstructed=zeros(2*round(this.dBeamWidthEstPx));
-            for i=1:dZernOrder
-                this.dReconstructed=this.dReconstructed+dZrn(i)*zgen(2*round(this.dBeamWidthEstPx),i);
-            end
-            if strcmp(cReconstructionType,'Fourier')
-                this.dReconstructed=FTPhase;
-                this.dResult(1)=std(this.dReconstructed(~isnan(this.dReconstructed)));
-            else
-                this.dReconstructed=pad2(this.dReconstructed,N,N).*(this.dAnalysisRegion).*(this.dAnalysisRegion2);
-                this.dResult(1)=std(this.dReconstructed(rot90(this.dAnalysisRegion)==1));
-            end
-            
-            this.dResult(2)=RMSFit;
-            %              this.dResult(2)=RMSFit*lambda_um*1000;
+        function analyze(this)
             
             % Make phase tab active:
-            this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
+            this.uitgAxesDisplay.selectTabByIndex(this.U8ANALYSIS);
             
             % Plot wavefronts on phase tab
             this.replot(this.U8RECONSTRUCTION, []);
@@ -1954,35 +1656,6 @@ classdef PIE_Analyze < mic.Base
             end
             
             this.dObstructionWidthEstPx = (tan(asin(CenterObstruction*NA))*(z2_mm) * sr / (detSize));
-            
-            % Set default mask:
-            %             if mod(sr,2)==0
-            %                 if this.dObstructionWidthEstPx~=0
-            %                     if ~isempty(dObsOffset)
-            %                         this.dAnalysisRegion = pinhole(2*round(this.dBeamWidthEstPx - this.dShearPix), sr, sc)-...
-            %                             circshift(pinhole(2*round(this.dObstructionWidthEstPx + this.dObstructionShearPix), sr, sc), ...
-            %                             [ dObsOffset(2),  dObsOffset(1)]);
-            %                     else
-            %                         this.dAnalysisRegion = pinhole(2*round(this.dBeamWidthEstPx - this.dShearPix), sr, sc)-...
-            %                             pinhole(2*round(this.dObstructionWidthEstPx + this.dObstructionShearPix), sr, sc);
-            %                     end
-            %                 else
-            %                     this.dAnalysisRegion = pinhole(2*round(this.dBeamWidthEstPx - this.dShearPix), sr, sc);
-            %                 end
-            %             else
-            %                 if this.dObstructionWidthEstPx~=0
-            %                     if ~isempty(dObsOffset)
-            %                         this.dAnalysisRegion = pinhole(2*ceil(this.dBeamWidthEstPx - this.dShearPix)-1, sr, sc)-...
-            %                             circshift(pinhole(2*floor(this.dObstructionWidthEstPx + this.dObstructionShearPix)+1, sr, sc), ...
-            %                             [ dObsOffset(2),  dObsOffset(1)]);
-            %                     else
-            %                         this.dAnalysisRegion = pinhole(2*ceil(this.dBeamWidthEstPx - this.dShearPix)-1, sr, sc)-...
-            %                             pinhole(2*floor(this.dObstructionWidthEstPx + this.dObstructionShearPix)+1, sr, sc);
-            %                     end
-            %                 else
-            %                     this.dAnalysisRegion = pinhole(2*ceil(this.dBeamWidthEstPx - this.dShearPix)-1, sr, sc);
-            %                 end
-            %             end
             %remove lines
             this.dAnalysisRegion = ones(sr,sc);
             this.dAnalysisRegion2=ones(sr,sc);
@@ -2019,27 +1692,7 @@ classdef PIE_Analyze < mic.Base
             
             this.dAnalysisRegion2 = dROI;
             
-            
-            %
-            %             this.dBeamWidthEstPx    = round(tan(asin(NA))*(z2_mm) * sr / (detSize));
-            %             this.dShearPix          = ceil(this.dBeamWidthEstPx - ...
-            %                                         tan(asin(NA) - lambda_um/T_um)*(z2_mm) * sr / (detSize));
-            %             this.dObstructionWidthEstPx = round(CenterObstruction*tan(asin(NA))*(z2_mm) * sr / (detSize));
-            %             this.dObstructionShearPix =round(tan(asin(lambda_um/T_um))*z2_mm* sr / detSize);
-            %             % Set default mask:
-            %             if this.dObstructionWidthEstPx~=0
-            %                 this.dAnalysisRegion = pinhole(2*(this.dBeamWidthEstPx - this.dShearPix), sr, sc)-...
-            %                     pinhole(2*(this.dObstructionWidthEstPx + this.dObstructionShearPix), sr, sc);
-            %             else
-            %                 this.dAnalysisRegion = pinhole(2*(this.dBeamWidthEstPx - this.dShearPix), sr, sc);
-            %             end
-            %             %remove lines
-            %             this.dAnalysisRegion2=ones(sr,sc);
-            %             LineWidth=4;
-            %             HalfAngle=45;
-            %             [x,y]=meshgrid(linspace(-1,1,sr));
-            %             this.dAnalysisRegion2((abs(x-tan(HalfAngle/180*pi)*y)/sqrt(1+tan(HalfAngle/180*pi)^2)<LineWidth*2/sr|...
-            %                 abs(x+tan(HalfAngle/180*pi)*y)/sqrt(1+tan(HalfAngle/180*pi)^2)<LineWidth*2/sr)&y>=0)=0;
+          
         end
         function computeElipticalMask(this)
             lambda_um   = this.uieLambda.get()/1000;
@@ -2087,11 +1740,7 @@ classdef PIE_Analyze < mic.Base
             
             %remove lines
             this.dAnalysisRegion2=ones(sr,sc);
-            %             LineWidth=2;
-            %             HalfAngle=27;
-            %             [x,y]=meshgrid(linspace(-1,1,sr));
-            %             this.dAnalysisRegion2((abs(x-tan(HalfAngle/180*pi)*y)/sqrt(1+tan(HalfAngle/180*pi)^2)<LineWidth*2/sr|...
-            %                 abs(x+tan(HalfAngle/180*pi)*y)/sqrt(1+tan(HalfAngle/180*pi)^2)<LineWidth*2/sr)&y<=0)=0;
+       
         end
         
         % Position recall getters
@@ -2197,7 +1846,7 @@ classdef PIE_Analyze < mic.Base
                     % this.ceInt_0{k}=ceData{k};
                     
                     if (dGlobalRot ~= 0)
-                        % Rotate interferograms here
+                        % Rotate patterns here
                         this.ceIntR{k,t} = imrotate(ceData{k,t},dGlobalRot,'crop');
                     else
                         this.ceIntR{k,t} = ceData{k,t};
@@ -2266,7 +1915,7 @@ classdef PIE_Analyze < mic.Base
                     case this.U8DATA
                         [sr, sc] = size(this.ceInt);
                         
-                        % Plot main interferogram
+                        % Plot main pattern
                         this.hsaInterferogram.setHoldState('off');
                         dObsOffset = eval(this.uieObsOffset.get());
                         
@@ -2432,66 +2081,8 @@ classdef PIE_Analyze < mic.Base
                         this.haReconObjectPha.Title.String = 'Object phase';this.haReconObjectPha.XLabel.String = 'mm';this.haReconObjectPha.YLabel.String = 'mm';
                         drawnow;
                     case this.U8ANALYSIS
-                        u8ReconUnit               = this.uipReconUnit.getSelectedIndex();
-                        switch u8ReconUnit
-                            case 1  %unit: Wave
-                                this.uitRMS.set(strcat('RMS:',num2str(this.dResult(1)),'Waves'));
-                                this.uitRMSFit.set(strcat('RMSFit:',num2str(this.dResult(2)),'Waves'));
-                                if ~this.uicbResidualError.get()
-                                    bar(this.haZernikeDecomp,[1:(length(this.dZernike))], this.dZernike);
-                                else
-                                    residaulPhase= abdom(pinhole(100), [0;this.dZernikeResidual]);
-                                    RMSE = std(residaulPhase(logical(pinhole(100))));
-                                    this.uitRMS.set(strcat('RMSE:',num2str(RMSE),'Waves'));
-                                    bar(this.haZernikeDecomp,[1:(length(this.dZernike))], this.dZernikeResidual);
-                                end
-                                ylabel(this.haZernikeDecomp,'Waves');
-                                xlabel(this.haZernikeDecomp,'Zernike terms');
-                            case 2  %unit: mWave
-                                this.dReconstructed=this.dReconstructed*1000;
-                                this.dZernike=this.dZernike*1000;
-                                this.dZernikeResidual=this.dZernikeResidual*1000;
-                                this.dResult=this.dResult*1000;
-                                this.uitRMS.set(strcat('RMS:',num2str(this.dResult(1)),'mWaves'));
-                                this.uitRMSFit.set(strcat('RMSFit:',num2str(this.dResult(2)),'mWaves'));
-                                if ~this.uicbResidualError.get()
-                                    bar(this.haZernikeDecomp,[1:(length(this.dZernike))], this.dZernike);
-                                else
-                                    residaulPhase= abdom(pinhole(100), [0;this.dZernikeResidual]);
-                                    RMSE = std(residaulPhase(logical(pinhole(100))));
-                                    this.uitRMS.set(strcat('RMSE:',num2str(RMSE),'mWaves'));
-                                    bar(this.haZernikeDecomp,[1:(length(this.dZernike))], this.dZernikeResidual);
-                                end
-                                ylabel(this.haZernikeDecomp,'mWaves');
-                                xlabel(this.haZernikeDecomp,'Zernike terms');
-                            case 3  %unit: nm
-                                this.dReconstructed=this.dReconstructed*this.uieLambda.get();
-                                this.dZernike=this.dZernike*this.uieLambda.get();
-                                this.dZernikeResidual=this.dZernikeResidual*this.uieLambda.get();
-                                this.dResult=this.dResult*this.uieLambda.get();
-                                this.uitRMS.set(strcat('RMS:',num2str(this.dResult(1)),'nm'));
-                                this.uitRMSFit.set(strcat('RMSFit:',num2str(this.dResult(2)),'nm'));
-                                if ~this.uicbResidualError.get()
-                                    bar(this.haZernikeDecomp,[1:(length(this.dZernike))], this.dZernike);
-                                else
-                                    residaulPhase= abdom(pinhole(100), [0;this.dZernikeResidual]);
-                                    RMSE = std(residaulPhase(logical(pinhole(100))));
-                                    this.uitRMS.set(strcat('RMSE:',num2str(RMSE),'nm'));
-                                    bar(this.haZernikeDecomp,[1:(length(this.dZernike))], this.dZernikeResidual);
-                                end
-                                ylabel(this.haZernikeDecomp,'nm');
-                                xlabel(this.haZernikeDecomp,'Zernike terms');
-                        end
-                        axis(this.haZernikeDecomp,[1 length(this.dZernike) -inf inf])
-                        if ~this.uicbResidualError.get()
-                            imagesc(this.haReconstructed, this.dReconstructed);colorbar(this.haReconstructed);axis(this.haReconstructed,'xy');
-                        else
-                            imagesc(this.haReconstructed, residaulPhase);colorbar(this.haReconstructed);axis(this.haReconstructed,'xy');
-                        end
-                        this.haReconstructed.Title.String = 'Reconstructed wavefront';
-                        this.haZernikeDecomp.Title.String = 'Zernike decomposition';
-                        this.uitRMS.setFontSize(12);
-                        this.uitRMSFit.setFontSize(12);
+                        
+                        
                     case this.U8LOG
                         this.ceAnalysisTable(end+1,1)={datestr(now, 31)};
                         this.ceAnalysisTable(end,2)={this.cSeries};
@@ -2525,8 +2116,6 @@ classdef PIE_Analyze < mic.Base
             % Process phase:
             this.reconstruct(this.uitgAnalysisDomain.getSelectedTabName());
             
-            % Reconstruct:
-            this.analyze(this.uitgReconstructionType.getSelectedTabName());
             
         end
         
@@ -2535,9 +2124,6 @@ classdef PIE_Analyze < mic.Base
                 paramName = varargin{k};
                 paramValue = varargin{k+1};
                 switch paramName
-                    case 'nZern' % sets all zern values
-                        this.uieNZernikes.set(paramValue);
-                        this.uieNZernikesBasis.set(paramValue);
                     case 'nPhSteps'
                         this.uieScanSteps.set(paramValue);
                         dN = paramValue;
@@ -2575,23 +2161,10 @@ classdef PIE_Analyze < mic.Base
                         this.uieMSFN.set(paramValue);
                     case 'airflow'
                         this.uieAirflow.set(paramValue);
-                    case 'lowPass'
-                        this.uieLowPass.set(paramValue);
-                    case 'filterType'
-                        this.uipWindowFunction.setSelectedIndex(uint8(paramValue));
-                    case 'fittingType'
-                        this.uipFittingType.setSelectedIndex(uint8(paramValue));
                     case 'gratingPitch'
                         this.uieScanRange.set(paramValue);
                     case 'Z_1'
                         this.uiez1.set(paramValue);
-                    case 'recType'
-                        switch lower(paramValue)
-                            case 'fourier'
-                                this.uitgReconstructionType.selectTabByName('Fourier');
-                            case {'derivative basis', 'derivative-basis'}
-                                this.uitgReconstructionType.selectTabByName('Derivative Basis');
-                        end
                 end
             end
         end
@@ -2715,7 +2288,7 @@ classdef PIE_Analyze < mic.Base
                 'XTick', [], 'YTick', []);
             
             this.uitRMS.build           (uitAnalysis, 80, 880, 200, 20);
-            this.uitRMSFit.build           (uitAnalysis, 300, 880, 200, 20);
+            
             % Axes:Log
             uitLog = this.uitgAxesDisplay.getTabByName('Log');
             this.htLog = uitable(uitLog,'Position',[10 10 930 900],'CellSelectionCallback',@(src, evt)this.cb(src,evt));
@@ -2784,7 +2357,7 @@ classdef PIE_Analyze < mic.Base
             
             % Controls:Data:LI
             Offset2=-30;
-            uitLISingle = this.uitgSelectDataSource.getTabByName('Load Interferogram');
+            uitLISingle = this.uitgSelectDataSource.getTabByName('Load patterns');
             this.uieLogFileNameSingle.build (uitLISingle, 20, 35+Offset2, 380, 20);
             this.uibSetLogFileSingle.build  (uitLISingle, 420, 35 + 13+Offset2, 100, 20);
             
@@ -2901,41 +2474,7 @@ classdef PIE_Analyze < mic.Base
                 'Position', [10 10 600 170] ...
                 );
             drawnow
-%             Offset7=-30;
-%             this.uitgReconstructionType.build(this.hpAnalysis, 10, 25, 250, 135);
-%             drawnow
-%             
-%             uitRim  = this.uitgReconstructionType.getTabByName('Rimmer');
-%             uitDB   = this.uitgReconstructionType.getTabByName('Derivative Basis');
-%             uitFT   = this.uitgReconstructionType.getTabByName('Fourier');
-%             this.uitgReconstructionType.selectTabByName('Derivative Basis');
-%             
-%             
-%             
-%             
-%             this.uipRimmerType.build    (uitRim, 10, 50+Offset7, 200, 20);
-%             
-%             this.uicbAutoLoadRim.build  (uitRim, 10, 100+Offset7, 200, 20);
-%             
-%             this.uieNZernikesBasis.build(uitDB, 10, 50+Offset7, 100, 20);
-%             this.uicbAutoLoadDB.build   (uitDB, 10, 100+Offset7, 200, 20);
-%             
-%             this.uicbAutoLoadFT.build   (uitFT, 10, 100+Offset7, 200, 20);
-%             this.uicbOrthogonalization.build   (uitFT, 140, 100+Offset7, 200, 20);
-%             this.uipFittingType.build    (uitFT, 10, 50+Offset7, 200, 20);
-%             
-%             Offset8=20;
-%             this.uieNZernikes.build     (this.hpAnalysis, 415, 70+Offset8, 80, 20);
-%             this.uibReconstruct.build   (this.hpAnalysis, 415, 120+Offset8, 160, 20);
-%             this.uicbRemoveTiltX.build  (this.hpAnalysis, 280, 40+Offset8, 100, 20);
-%             this.uicbRemoveTiltY.build  (this.hpAnalysis, 280, 80+Offset8, 100, 20);
-%             this.uicbRemoveDefocus.build(this.hpAnalysis, 280, 120+Offset8, 120, 20);
-%             
-%             this.uicbScaledNW.build  (this.hpAnalysis, 280, 20, 160, 20);
-%             this.uipReconUnit.build  (this.hpAnalysis, 415, 45, 100, 20);
-%             this.uicbResidualError.build  (this.hpAnalysis, 415, 20, 100, 20);
-%             
-%             drawnow
+
             % Set hsa offset:
             this.hsaInterferogram.setAxesOffset([dTgPx + uitData.Position(1), dTgPy + uitData.Position(2)]);
             
