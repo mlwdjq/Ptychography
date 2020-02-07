@@ -1315,6 +1315,8 @@ classdef PIE_Analyze < mic.Base
             if isempty(this.dObjectGuess)
                 KL = round(this.uieScanRange.get()*1000./do_um)+N;
                 this.dObjectGuess = ones(KL);
+            else
+                KL = length(this.dObjectGuess);
             end
             this.dProbeRecon =this.dProbeGuess;
             this.dObjectRecon =this.dObjectGuess;
@@ -1335,8 +1337,14 @@ classdef PIE_Analyze < mic.Base
             delta = this.uieDelta.get(); % weight factor for RAAR, 1 for DM
             correctPos = this.uicbCorrectPos.get();
             Cpix = zeros(scanSteps^2,2);
+            rot_rad =0;
+            scale = 0;
             nC = 10;
-            rCpix = floor((max(Rpix(:,1))-min(Rpix(:,1)))/(scanSteps-1)/2);
+            correctMethod =  this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+            centralPix =max(Rpix(:,1))-min(Rpix(:,1));
+            rCpix0 = floor(centralPix/(scanSteps-1)); % random position searching radius
+            maxRot_rad0 = 1/180*pi; % maximum rotation
+            maxScale0 =0.01;% maximum scale
             detectorWaveTry = zeros(N,N,nC);
             posError = zeros(nC,1);
             if strcmp(cAnalysisDomain,'WDD')
@@ -1357,27 +1365,83 @@ classdef PIE_Analyze < mic.Base
                     case 'rPIE' % scanning solution
                         for j =1:scanSteps^2
                             if correctPos==1 % apply position correction
-                                 randPix= [[0,0];round(rCpix*(rand(nC-1,2)-0.5))]; % generate rand searching pixel within the radius rCpix 
-                                 RpixTry = Rpix + Cpix + randPix;
-                                 RpixTry( RpixTry <= 0 | RpixTry+N>KL) = 0;
-                                 % find the best position by comparing the diffraction intensity
-                                 for m =1:nC
-                                    reconBox = this.dObjectRecon(RpixTry(j,1)+[1:N],RpixTry+[1:N]);
-                                    exitWave = reconBox.*this.dProbeRecon;
-                                    detectorWaveTry(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,1);
-                                    temp = (abs(detectorWaveTry(:,:,m))-sqrtInt(:,:,j)).^2;
-                                    posError(m) = sum(temp(:));
-                                 end
-                                 
-                                
-                                [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt(:,:,j),...
-                                    propagator,H,Hm,1);
+                                correctMethod='e-pcPIE';
+                                switch correctMethod
+                                    case 'pcPIE' % annealing algorithm
+                                        rCpix = rCpix0*(iteration-i)/iteration;
+                                        randPix= [[0,0];round(rCpix*(rand(nC-1,2)*2-1))]; % generate rand searching pixel within the radius rCpix
+                                        RpixTry = Rpix(j,:) + Cpix(j,:) + randPix;
+                                        RpixTry( RpixTry <= 0) = 0;
+                                        RpixTry( RpixTry+N>KL) = 0;
+                                        % find the best position by comparing the diffraction intensity
+                                        for m =1:nC
+                                            reconBox = this.dObjectRecon(RpixTry(m,1)+[1:N],RpixTry(m,2)+[1:N]);
+                                            exitWave = reconBox.*this.dProbeRecon;
+                                            detectorWaveTry(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,1);
+                                            temp = (abs(detectorWaveTry(:,:,m))-sqrtInt(:,:,j)).^2;
+                                            posError(m) = sum(temp(:));
+                                        end
+                                        [~,m0] = min(posError);
+                                        if all(abs(Cpix(j,:)+randPix(m0,:))<=rCpix0)
+                                            Cpix(j,:) = Cpix(j,:)+randPix(m0,:);
+                                        else
+                                            Cpix(j,:) = [0,0];
+                                        end
+                                    case 'e-pcPIE' % extend pcPIE,which corect additional rotation and scale
+                                        rCpix = rCpix0*(iteration-i)/iteration;
+                                        maxRot_rad =maxRot_rad0*(iteration-i)/iteration;
+                                        maxScale = maxScale0*(iteration-i)/iteration;
+                                        
+                                        randPix= [[0,0];rCpix*(rand(nC-1,2)*2-1)]; % generate rand searching pixel within the radius rCpix
+                                        randRot_rad= [0;maxRot_rad*(rand(nC-1,1)*2-1)]; % generate rand searching rotation 
+                                        randScale= [0;maxScale*(rand(nC-1,1)*2-1)]; % generate rand searching rotation 
+                                        rotPix(:,2) =  (Rpix(j,2)-centralPix)*cos(rot_rad + randRot_rad)+...
+                                            (Rpix(j,1)-centralPix)*sin(rot_rad + randRot_rad)-Rpix(j,2)+centralPix;
+                                        rotPix(:,1) =  (Rpix(j,1)-centralPix)*cos(rot_rad + randRot_rad)-...
+                                            (Rpix(j,2)-centralPix)*sin(rot_rad + randRot_rad)-Rpix(j,1)+centralPix;
+                                        scalePix = (Rpix(j,:)-centralPix).*(scale + randScale);
+
+                                        RpixTry = Rpix(j,:) + round(Cpix(j,:)+ randPix + rotPix+ scalePix);
+                                        RpixTry( RpixTry <= 0) = 0;
+                                        RpixTry( RpixTry+N>KL) = 0;
+                                        % find the best position by comparing the diffraction intensity
+                                        for m =1:nC
+                                            reconBox = this.dObjectRecon(RpixTry(m,1)+[1:N],RpixTry(m,2)+[1:N]);
+                                            exitWave = reconBox.*this.dProbeRecon;
+                                            detectorWaveTry(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,1);
+                                            temp = (abs(detectorWaveTry(:,:,m))-sqrtInt(:,:,j)).^2;
+                                            posError(m) = sum(temp(:));
+                                        end
+                                        [~,m0] = min(posError);
+                                        if all(abs(Cpix(j,:)+randPix(m0,:))<=rCpix0)
+                                            Cpix(j,:) = Cpix(j,:)+randPix(m0,:);
+                                        else % bad serach
+                                            Cpix(j,:) = [0,0];
+                                        end
+                                        if abs(rot_rad + randRot_rad(m0))<= maxRot_rad0
+                                            rot_rad = rot_rad + randRot_rad(m0);
+                                        else
+                                            rot_rad =0;
+                                        end
+                                        if abs(scale + randScale(m0))<=maxScale0
+                                            scale = scale + randScale(m0);
+                                        else
+                                            scale =0;
+                                        end
+                                        
+                                end
+                                % update probe and object using new position
+                                detectorWave=detectorWaveTry(:,:,m0);
+                                reconBox = this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]);
+                                exitWave = reconBox.*this.dProbeRecon;
+                                correctedWave = sqrtInt(:,:,j).*detectorWave./(abs(detectorWave)+eps);
+                                exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,1);
                                 tempProbe = this.dProbeRecon;
                                 denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
                                 newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
                                 denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
                                 this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
-                                this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
+                                this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]) = newReconBox;
                                 tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
                             else
                                 reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
@@ -1460,16 +1524,17 @@ classdef PIE_Analyze < mic.Base
                 end
                 % error evaluation
                 errors(i) = sum(tempError(:))/sum(sum(sum(sqrtInt)));
-                if strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
-                    % Plot wavefronts on phase tab
-                    this.replot(this.U8RECONSTRUCTION, []);
-                    
-                end
+                
                 iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
                 this.uitIteration.set(iterationStr);drawnow;
                 
                 if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<this.uieAccuracy.get()))
+                    % Plot wavefronts on phase tab
+                    this.replot(this.U8RECONSTRUCTION, []);
                     break;
+                elseif strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
+                    % Plot wavefronts on phase tab
+                    this.replot(this.U8RECONSTRUCTION, []);
                 end
             end
             
