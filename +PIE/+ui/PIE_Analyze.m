@@ -1223,29 +1223,7 @@ classdef PIE_Analyze < mic.Base
             gamma = this.uieGamma.get(); % weight factor for rPIE, 1 for ePIE
             delta = this.uieDelta.get(); % weight factor for RAAR, 1 for DM
             correctPos = this.uicbCorrectPos.get();
-            Cpix = zeros(scanSteps^2,2);
-            rot_rad =0;
-            scale = 0;
-            nC = 10;
             correctMethod =  this.uipCorrectMethod.getOptions{this.uipCorrectMethod.getSelectedIndex()};
-            centralPix =max(Rpix(:,1))-min(Rpix(:,1));
-            rCpix0 = floor(centralPix/(scanSteps-1)); % random position searching radius
-            maxRot_rad0 = 1/180*pi; % maximum rotation
-            maxScale0 =0.01;% maximum scale
-            detectorWaveTry = zeros(N,N,nC);
-            posError = zeros(nC,1);
-            if strcmp(cAnalysisDomain,'WDD')
-                I_set_u_R = reshape(measurements,N,N,scanSteps,scanSteps);
-                I_set_R_u= permute(I_set_u_R,[3, 4, 1, 2]);
-                G_set_u_U = single(zeros(N,N,scanSteps,scanSteps));
-                G_set_U_u = single(zeros(scanSteps,scanSteps,N,N));
-                H_set_r_U = G_set_u_U;
-                H_set_U_r = G_set_U_u;
-                L_set_r_R = G_set_u_U;
-                L_set_R_r = G_set_U_u;
-                Xa = G_set_u_U;
-                Q = G_set_u_U;
-            end
             
             % iterations for reconstruction
             for i = 1:iteration
@@ -1254,100 +1232,27 @@ classdef PIE_Analyze < mic.Base
                     case 'rPIE' % scanning solution
                         for j =1:scanSteps^2
                             if correctPos==1 % apply position correction
-                                switch correctMethod
-                                    case 'pcPIE' % annealing algorithm
-                                        rCpix = rCpix0*(iteration-i)/iteration;
-                                        randPix= [[0,0];round(rCpix*(rand(nC-1,2)*2-1))]; % generate rand searching pixel within the radius rCpix
-                                        RpixTry = Rpix(j,:) + Cpix(j,:) + randPix;
-                                        RpixTry( RpixTry <= 0) = 0;
-                                        RpixTry( RpixTry+N>KL) = 0;
-                                        % find the best position by comparing the diffraction intensity
-                                        for m =1:nC
-                                            reconBox = this.dObjectRecon(RpixTry(m,1)+[1:N],RpixTry(m,2)+[1:N]);
-                                            exitWave = reconBox.*this.dProbeRecon;
-                                            detectorWaveTry(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,1);
-                                            temp = (abs(detectorWaveTry(:,:,m))-sqrtInt(:,:,j)).^2;
-                                            posError(m) = sum(temp(:));
-                                        end
-                                        [~,m0] = min(posError);
-                                        if all(abs(Cpix(j,:)+randPix(m0,:))<=rCpix0)
-                                            Cpix(j,:) = Cpix(j,:)+randPix(m0,:);
-                                        else
-                                            Cpix(j,:) = [0,0];
-                                        end
-                                    case 'e-pcPIE' % extend pcPIE,which corect additional rotation and scale
-                                        rCpix = rCpix0*(iteration-i)/iteration;
-                                        maxRot_rad =maxRot_rad0*(iteration-i)/iteration;
-                                        maxScale = maxScale0*(iteration-i)/iteration;
-                                        
-                                        randPix= [[0,0];rCpix*(rand(nC-1,2)*2-1)]; % generate rand searching pixel within the radius rCpix
-                                        randRot_rad= [0;maxRot_rad*(rand(nC-1,1)*2-1)]; % generate rand searching rotation 
-                                        randScale= [0;maxScale*(rand(nC-1,1)*2-1)]; % generate rand searching rotation 
-                                        rotPix(:,2) =  (Rpix(j,2)-centralPix)*cos(rot_rad + randRot_rad)+...
-                                            (Rpix(j,1)-centralPix)*sin(rot_rad + randRot_rad)-Rpix(j,2)+centralPix;
-                                        rotPix(:,1) =  (Rpix(j,1)-centralPix)*cos(rot_rad + randRot_rad)-...
-                                            (Rpix(j,2)-centralPix)*sin(rot_rad + randRot_rad)-Rpix(j,1)+centralPix;
-                                        scalePix = (Rpix(j,:)-centralPix).*(scale + randScale);
-
-                                        RpixTry = Rpix(j,:) + round(Cpix(j,:)+ randPix + rotPix+ scalePix);
-                                        RpixTry( RpixTry <= 0) = 0;
-                                        RpixTry( RpixTry+N>KL) = 0;
-                                        % find the best position by comparing the diffraction intensity
-                                        for m =1:nC
-                                            reconBox = this.dObjectRecon(RpixTry(m,1)+[1:N],RpixTry(m,2)+[1:N]);
-                                            exitWave = reconBox.*this.dProbeRecon;
-                                            detectorWaveTry(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,1);
-                                            temp = (abs(detectorWaveTry(:,:,m))-sqrtInt(:,:,j)).^2;
-                                            posError(m) = sum(temp(:));
-                                        end
-                                        [~,m0] = min(posError);
-                                        
-                                        % restart searching 
-                                        if all(abs(Cpix(j,:)+randPix(m0,:))<=rCpix0)
-                                            Cpix(j,:) = Cpix(j,:)+randPix(m0,:);
-                                        else % bad serach
-                                            Cpix(j,:) = [0,0];
-                                        end
-                                        if abs(rot_rad + randRot_rad(m0))<= maxRot_rad0
-                                            rot_rad = rot_rad + randRot_rad(m0);
-                                        else
-                                            rot_rad =0;
-                                        end
-                                        if abs(scale + randScale(m0))<=maxScale0
-                                            scale = scale + randScale(m0);
-                                        else
-                                            scale =0;
-                                        end
-                                        
+                                if i==1 % inital parameters
+                                    Cpix = zeros(scanSteps^2,2);
+                                    rot_rad =0;
+                                    scale = 0;
+                                    nC = 10;
+                                    centralPix =max(Rpix(:,1))-min(Rpix(:,1));
+                                    rCpix0 = floor(centralPix/(scanSteps-1)); % random position searching radius
+                                    maxRot_rad0 = 1/180*pi; % maximum rotation
+                                    maxScale0 =0.01;% maximum scale
                                 end
-                                % update probe and object using new position
-                                detectorWave=detectorWaveTry(:,:,m0);
-                                reconBox = this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]); % get reconstruction region
-                                exitWave = reconBox.*this.dProbeRecon; % calculate exit wave
-                                correctedWave = sqrtInt(:,:,j).*detectorWave./(abs(detectorWave)+eps); % correct diffraction intensity
-                                exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,1); % update exitwave
-                                % update probe and object
-                                tempProbe = this.dProbeRecon;
-                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2; 
-                                newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
-                                denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
-                                this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;% update object
-                                this.dObjectRecon(RpixTry(m0,1)+[1:N],RpixTry(m0,2)+[1:N]) = newReconBox;% update probe
-                                tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
+                                decreaseFactor = (iteration-i)/iteration;
+                                [this.dObjectRecon,this.dProbeRecon,tempError,Cpix(j,:),rot_rad,scale] = ...
+                                    PIE.utils.pcPIE(this.dObjectRecon,this.dProbeRecon,sqrtInt(:,:,j),...
+                                    tempError,alpha,beta,gamma,propagator,H,Hm,N,KL,Rpix(j,:),Cpix(j,:),...
+                                    rot_rad,scale, nC,rCpix0,maxRot_rad0,maxScale0,decreaseFactor,centralPix,correctMethod);
                             else % normal rPIE without position calibration
-                                reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                                exitWave = reconBox.*this.dProbeRecon;
-                                [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt(:,:,j),...
-                                    propagator,H,Hm,1);
-                                tempProbe = this.dProbeRecon;
-                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
-                                newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
-                                denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
-                                this.dProbeRecon = this.dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
-                                this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
-                                tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
+                                [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
+                                    sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError);
                             end
                         end
+                        
                     case 'RAAR' % batch scanning solution
                         if i==1 % initial exitWaves
                             exitWaves = zeros(N,N,scanSteps^2);
@@ -1356,60 +1261,12 @@ classdef PIE_Analyze < mic.Base
                                 exitWaves(:,:,j) = this.dProbeRecon.*reconBox;
                             end
                         end
-                        parfor j =1:scanSteps^2 % parallel compute scanning region
-                            reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                            waveToPropagate = 2*this.dProbeRecon.*reconBox-exitWaves(:,:,j);
-                            [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(waveToPropagate,sqrtInt(:,:,j),...
-                                propagator,H,Hm,1);
-                            tempError = tempError + abs(sqrtInt(:,:,j)-abs(detectorWave)).^2;
-                            exitWaves(:,:,j) = delta*(exitWaves(:,:,j) + exitWaveNew) +(1-2*delta)*this.dProbeRecon.*reconBox;
-                        end
-                        this.dProbeRecon = PIE.utils.BatchProbeUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,beta);
-                        this.dObjectRecon = PIE.utils.BatchObjectUpdate(exitWaves,this.dProbeRecon,this.dObjectRecon,Rpix,alpha);
-                    case 'WDD' % Wigner distribution deconvolution 
-                        % I_set(u,R), G_set(u,U), H_set(r,U), L_set(r,R)
-                        for m = 1:N
-                            for n = 1:N
-                                G_set_U_u(:,:,m,n) = fftshift(fft2(fftshift(I_set_R_u(:,:,m,n)))); % from R to U
-                            end
-                        end
-                        G_set_u_U = ipermute(G_set_U_u,[3 4 1 2]);
-                        for m = 1:scanSteps
-                            for n = 1:scanSteps
-                                L_set_r_R(:,:,m,n) = ifftshift(ifft2(ifftshift(I_set_u_R(:,:,m,n)))); % from u to r
-                                H_set_r_U(:,:,m,n) = ifftshift(ifft2(ifftshift(G_set_u_U(:,:,m,n)))); % from u to r
-                            end
-                        end
-                        L_set_R_r = permute(L_set_r_R,[3 4 1 2]);
-                        H_set_U_r = permute(H_set_r_U,[3 4 1 2]);
-                        for m = 1:scanSteps
-                            for n = 1:scanSteps
-                                temp1 = fftshift(fft2(fftshift(this.dObjectRecon(Rypix(m,n)+[1:N],Rxpix(m,n)+[1:N])))); % from R to U
-                                temp0 = fftshift(fft2(fftshift(this.dObjectRecon(Rypix(round((scanSteps+1)/2),...
-                                    round((scanSteps+1)/2))+[1:N],Rxpix(round((scanSteps+1)/2),round((scanSteps+1)/2))+[1:N]))));
-                                Xa(:,:,m,n) = ifftshift(ifft2(ifftshift(conj(temp1).*temp0)));%% may change the conj
-                            end
-                        end
-                        Xq = conj(Xa).*H_set_r_U./(abs(Xa).^2+eps);
-                        for m = 1:scanSteps
-                            for n = 1:scanSteps
-                                Q(:,:,m,n) = fftshift(fft2(fftshift(Xq(:,:,m,n))));%% may change the conj
-                            end
-                        end
-                        for m = 1:scanSteps
-                            for n = 1:scanSteps
-                                Qs(m,n) =Q(N/scanSteps*(m-1)+1,N/scanSteps*(n-1)+1,m,n);%% may change the conj
-                            end
-                        end
-                        q = ifftshift(ifft2(ifftshift(Qs)));
-                        q_amp =abs(q);
-                        q_pha =atan2(imag(q),real(q));
-                        imagesc(q_amp);colorbar;
-                        %             subplot(122),imagesc(q_pha);
-                        %             Probe = fftshift(fft2(fftshift(probe)));
-                        %             temp = permute(G_set_u_U,[1,2,3,4]);
-                        %             imagesc(abs(temp(:,:,10,10)))
-                        %                     break;
+                        [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.RAAR(this.dObjectRecon,this.dProbeRecon,...
+                            sqrtInt,exitWaves,tempError,alpha,beta,delta,Rpix,N,propagator,H,Hm,scanSteps);
+                        
+                    case 'WDD' % Wigner distribution deconvolution
+                        q = PIE.utils.WDD(this.dObjectRecon,this.dProbeRecon,sqrtInt,N,Rm,Rn,scanSteps);
+                        break;
                 end
                 % error evaluation
                 errors(i) = sum(tempError(:))/sum(sum(sum(sqrtInt)));
