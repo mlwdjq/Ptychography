@@ -195,6 +195,11 @@ classdef PIE_Analyze < mic.Base
         uicbGuess
         uitOverlap
         
+        % Controls:Data:SimSegments
+        uieSegmentPath
+        uibLoadSegment
+        ceSegments = [];
+        
         % Controls:Data:SimStochastics
         uibCustomSim
         uibReset
@@ -302,7 +307,7 @@ classdef PIE_Analyze < mic.Base
             
             %% Controls: Data panel
             this.uitgSelectDataSource = ...
-                mic.ui.common.Tabgroup('ceTabNames', {'Load patterns', 'Load P/S Series', 'Simulation','Probe and object', 'Sim stochastics'});
+                mic.ui.common.Tabgroup('ceTabNames', {'Load patterns', 'Load P/S Series', 'Simulation','Probe and object','Sim segments', 'Sim stochastics'});
             
             this.uieCCDCenter       = mic.ui.common.Edit('cLabel', 'CCD Center pixel', 'cType', 'c', ...
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
@@ -369,7 +374,7 @@ classdef PIE_Analyze < mic.Base
             this.uieScanSteps.set(4);
             dN = this.uieScanSteps.get();
             dL = this.uieScanRange.get();
-            dPosString = sprintf('0:%0.2f/%d:%0.2f', dL, dN-1, dL);
+            dPosString = sprintf('0:%0.3f/%d:%0.3f', dL, dN-1, dL);
             this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
             
             this.uieZrn.set('[]');
@@ -390,6 +395,10 @@ classdef PIE_Analyze < mic.Base
             this.uicbGuess = mic.ui.common.Checkbox('cLabel', 'Initial guess',  'fhDirectCallback', @(src, evt)this.cb(src));
             this.uicbGuess.set(true);
             this.uitOverlap                 = mic.ui.common.Text('cVal','Overlap:');
+            
+            % Controls:Data:Sim segments
+            this.uieSegmentPath    = mic.ui.common.Edit('cLabel', 'Segment path', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uibLoadSegment     = mic.ui.common.Button('cText', 'Load segments', 'fhDirectCallback', @(src, evt)this.cb(src));
             
             % Controls:Data:Sim stochastics
             this.uibCustomSim = mic.ui.common.Button('cText', 'Custom Sim', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -422,7 +431,7 @@ classdef PIE_Analyze < mic.Base
             this.uieAlpha                = mic.ui.common.Edit('cLabel', 'Alpha (O)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieBeta                = mic.ui.common.Edit('cLabel', 'Beta (P)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieMaxIteration              = mic.ui.common.Edit('cLabel', 'Max iteration', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieAccuracy              = mic.ui.common.Edit('cLabel', 'Max iteration', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieAccuracy              = mic.ui.common.Edit('cLabel', 'Accuracy', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieAlpha.set(1);
             this.uieBeta.set(1);
             this.uieMaxIteration.set(1000);
@@ -537,9 +546,9 @@ classdef PIE_Analyze < mic.Base
                     
                     initialGuess = this.uicbGuess.get();
                     if initialGuess
-                        this.dProbeGuess = interp2(p,q,probe,m,n);
+                        this.dProbeGuess = interp2(p,q,probe,m,n,'nearest');
                     else
-                        this.dProbe = interp2(p,q,probe,m,n);
+                        this.dProbe = interp2(p,q,probe,m,n,'nearest');
                     end
                     if initialGuess
                         % Make phase tab active:
@@ -594,9 +603,9 @@ classdef PIE_Analyze < mic.Base
                     
                     initialGuess = this.uicbGuess.get();
                     if initialGuess
-                        this.dObjectGuess = interp2(p,q,object,m,n);
+                        this.dObjectGuess = interp2(p,q,object,m,n,'nearest');
                     else
-                        this.dObject = interp2(p,q,object,m,n);
+                        this.dObject = interp2(p,q,object,m,n,'nearest');
                     end
                     if initialGuess
                         % Make phase tab active:
@@ -666,7 +675,7 @@ classdef PIE_Analyze < mic.Base
                 case this.uieScanRange
                     dN = this.uieScanSteps.get();
                     dL = this.uieScanRange.get();
-                    dPosString = sprintf('0:%0.2f/%d:%0.2f', dL, dN-1, dL);
+                    dPosString = sprintf('0:%0.3f/%d:%0.3f', dL, dN-1, dL);
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
                     
                 case {this.uibSetLogFileSingle, this.uibSetLogFileStack}
@@ -854,8 +863,27 @@ classdef PIE_Analyze < mic.Base
                 case this.uieScanSteps
                     dN = this.uieScanSteps.get();
                     dL = this.uieScanRange.get();
-                    dPosString = sprintf('0:%0.2f/%d:%0.2f', dL, dN-1, dL);
+                    dPosString = sprintf('0:%0.3f/%d:%0.3f', dL, dN-1, dL);
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
+                case this.uibLoadSegment
+                    try
+                    cDataDir = fullfile(this.cAppPath, '..', '+utils', '*.mat');
+                    [d, p] = uigetfile(cDataDir);
+                    this.uieSegmentPath.set([p d]);  
+                    load([p d]);
+                    this.ceSegments = segs;
+                    this.uieRes.set(length(segs{1}));
+                    catch
+                        this.ceSegments = [];
+                    end
+                    
+                case this.uieSegmentPath
+                    try
+                        load(this.uieSegmentPath.get());
+                        this.ceSegments = segs;
+                    catch
+                        this.ceSegments = [];
+                    end
                     
                 case this.uiePhaseStepsSim
                     [lValid, vals] = this.validateCouplesEditBox(src, '[]');
@@ -955,13 +983,13 @@ classdef PIE_Analyze < mic.Base
                     [m,n] = meshgrid(linspace(0,1,L),linspace(0,1,K));
                     [sr,sc,~]= size(I);
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
-                    object_amp = interp2(p,q,I(:,:,1),m,n);
+                    object_amp = interp2(p,q,I(:,:,1),m,n,'nearest');
                     object_amp = mat2gray(object_amp)*0.8+0.2; % object amplitude
 %                     object_amp = ones(K,L);
                     I =single(imread('pears.png'));
                     [sr,sc,~]= size(I);
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
-                    object_pha = interp2(p,q,I(:,:,1),m,n);
+                    object_pha = interp2(p,q,I(:,:,1),m,n,'nearest');
                     object_pha=mat2gray(object_pha);
                     object_pha = (object_pha-0.5)*1*pi; % object phase
                     object = object_amp.*exp(1i*object_pha);
@@ -1207,14 +1235,31 @@ classdef PIE_Analyze < mic.Base
             this.dProbeRecon =this.dProbeGuess;
             this.dObjectRecon =this.dObjectGuess;
             sqrtInt  = zeros(N,N,scanSteps^2);
+            Is = 0;
             k=1;
             for i =1:scanSteps
                 for j =1:scanSteps
-                    sqrtInt(:,:,k)=this.ceInt{i,j};
+                    sqrtInt(:,:,k)=sqrt(this.ceInt{i,j});
+                    Is = Is + this.ceInt{i,j};
                     Rpix(k,:)=[Rm(i),Rn(j)];
                     k=k+1;
                 end
             end
+            totalI =0;
+            Iseg = zeros(length(this.ceSegments),scanSteps^2);
+            if ~isempty(this.ceSegments)
+                for k =1:length(this.ceSegments)
+                    for i =1:scanSteps
+                        for j =1:scanSteps
+                           Iseg(k,scanSteps*(i-1)+j) = mean ( this.ceInt{i,j}(this.ceSegments{k}==1));
+                           totalI = totalI+mean(Is(this.ceSegments{k}==1));
+                        end
+                    end
+                end
+            else
+                totalI =totalI+sum(Is(:));
+            end
+            
             % initial reconstruction parameters
             iteration = this.uieMaxIteration.get();
             errors = zeros(iteration,1);
@@ -1248,8 +1293,13 @@ classdef PIE_Analyze < mic.Base
                                     tempError,alpha,beta,gamma,propagator,H,Hm,N,KL,Rpix(j,:),Cpix(j,:),...
                                     rot_rad,scale, nC,rCpix0,maxRot_rad0,maxScale0,decreaseFactor,centralPix,correctMethod);
                             else % normal rPIE without position calibration
-                                [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
-                                    sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError);
+                                if ~isempty( this.ceSegments)
+                                    [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.sPIE(this.dObjectRecon,this.dProbeRecon,...
+                                        sqrtInt(:,:,j),Iseg(:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError,this.ceSegments);
+                                else
+                                    [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
+                                        sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError);
+                                end
                             end
                         end
                         
@@ -1269,12 +1319,12 @@ classdef PIE_Analyze < mic.Base
                         break;
                 end
                 % error evaluation
-                errors(i) = sum(tempError(:))/sum(sum(sum(sqrtInt)));
+                errors(i) = sum(tempError(:))/totalI;
                 
                 iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
                 this.uitIteration.set(iterationStr);drawnow;
                 
-                if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<1e-7)||errors(i)<this.uieAccuracy.get()))
+                if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<0e-7)||errors(i)<this.uieAccuracy.get()))
                     % Make phase tab active:
                     this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
                     % Plot wavefronts on phase tab
@@ -1459,10 +1509,10 @@ classdef PIE_Analyze < mic.Base
                 for m = 1:length(dXPosShifts)
                     for k = 1:length(dYPosShifts)
                         %
-                        Wint = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,N,...
+                        Wint = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,N,...
                             propagator,[dXPosShifts(m),dYPosShifts(k)],H,1);
                         
-                        simInts{k, m} = Wint;
+                        simInts{k, m} = Wint.^2;
                         this.uipbExposureProgress.set(k/length(dXPosShifts)/length(dYPosShifts)+(m-1)/length(dXPosShifts));
                         drawnow
                     end
@@ -1478,10 +1528,20 @@ classdef PIE_Analyze < mic.Base
             else % Simulate a singe image:
                 tic
                 %
-                Wint = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,N,propagator,[0,0],H,1);
-                this.handleLoadData({Wint}, {'sim'});
+                Wint = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,N,propagator,[0,0],H,1);
+                this.handleLoadData({Wint.^2}, {'sim'});
                 this.dAnalysisRegion(Wint==0)=0;
                 fprintf('Single image took %s\n', s2f(toc));
+            end
+            
+             % load segment mask
+            if ~isempty(this.ceSegments)
+                segMask = zeros(length(this.ceSegments{1}));
+                for k=1:length(this.ceSegments)
+                    segMask= segMask+this.ceSegments{k};
+                end
+%                 this.dAnalysisRegion=ones(length(segs{1}));
+                this.dAnalysisRegion(segMask==0)=0;
             end
             
             % Set state:
@@ -2267,6 +2327,11 @@ classdef PIE_Analyze < mic.Base
             this.uibGenProbeObject.build    (uitProbe, 430, 130+Offsetp, 100, 20);
             this.uicbGuess.build (uitProbe, 430, 10+Offsetp, 100, 20);
             this.uitOverlap.build (uitProbe, 430, 90+Offsetp, 120, 20);
+            
+            % Sim segment
+            uitSimSegment = this.uitgSelectDataSource.getTabByName('Sim segments');drawnow
+            this.uieSegmentPath.build  (uitSimSegment, 20, 25, 380, 20);
+            this.uibLoadSegment.build   (uitSimSegment, 420, 38, 100, 20);
             
             % Custom Sim
             uitCSim = this.uitgSelectDataSource.getTabByName('Sim stochastics');drawnow
