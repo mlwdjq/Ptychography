@@ -194,7 +194,6 @@ classdef PIE_Analyze < mic.Base
         uieRprobe
         uicbGuess
         uitOverlap
-        uitSampling
         
         % Controls:Data:SimSegments
         uieSegmentPath
@@ -396,7 +395,6 @@ classdef PIE_Analyze < mic.Base
             this.uicbGuess = mic.ui.common.Checkbox('cLabel', 'Initial guess',  'fhDirectCallback', @(src, evt)this.cb(src));
             this.uicbGuess.set(true);
             this.uitOverlap                 = mic.ui.common.Text('cVal','Overlap:');
-            this.uitSampling                 = mic.ui.common.Text('cVal','Sampling factor:');
             
             % Controls:Data:Sim segments
             this.uieSegmentPath    = mic.ui.common.Edit('cLabel', 'Segment path', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -937,6 +935,7 @@ classdef PIE_Analyze < mic.Base
             if NA>0
                 r = sin(atan(sqrt(x_um.^2+y_um.^2)/(z_um+df_um)))/NA;
                 th = atan2(y_um,x_um);
+                Dp = (z_um+df_um)*tan(asin(NA)
             else
                 r = sqrt(x_um.^2+y_um.^2)/Rc_um;
                 th = atan2(y_um,x_um);
@@ -971,8 +970,7 @@ classdef PIE_Analyze < mic.Base
             end
             overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
             this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
-            samplingFactor = 2*Rprobe_um/dR;
-            this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
+            samplingFactor = D/dR;
             %% initial object
             K = round(scanRange_um/do_um)+N;
             L = round(scanRange_um/do_um)+N; % size of object [K,L]
@@ -2332,7 +2330,7 @@ classdef PIE_Analyze < mic.Base
             this.uibGenProbeObject.build    (uitProbe, 430, 130+Offsetp, 100, 20);
             this.uicbGuess.build (uitProbe, 430, 10+Offsetp, 100, 20);
             this.uitOverlap.build (uitProbe, 430, 90+Offsetp, 120, 20);
-            this.uitSampling.build (uitProbe, 430, 50+Offsetp, 120, 20);
+            
             % Sim segment
             uitSimSegment = this.uitgSelectDataSource.getTabByName('Sim segments');drawnow
             this.uieSegmentPath.build  (uitSimSegment, 20, 25, 380, 20);
