@@ -63,6 +63,8 @@ classdef PIE_Analyze < mic.Base
         
         dAnalysisRegion = []
         dAnalysisRegion2 = []
+        dAnalysisMask = []
+        
         dReconstructed
         dZernike
         dZernikeResidual
@@ -74,6 +76,7 @@ classdef PIE_Analyze < mic.Base
         dObjectGuess
         dProbeRecon
         dObjectRecon
+        dSelectedObject
         
         % pupil guides
         dBeamWidthEstPx = 1
@@ -252,7 +255,9 @@ classdef PIE_Analyze < mic.Base
         
 
         % Controls:Analysis
-        
+        uipSelectRegion
+        uipSelectObject
+        uibAnalyze
         
     end
     
@@ -473,8 +478,14 @@ classdef PIE_Analyze < mic.Base
             
           
             %% Controls:Analysis
-            
-
+            this.uipSelectObject      = mic.ui.common.Popup('cLabel', 'Select analysis object', 'ceOptions',...
+                {'Object amplitude','Object phase','Probe amplitude','Probe phase',...
+                'Object spectrum amplitude','Object spectrum phase','Probe spectrum amplitude','Probe spectrum phase',...
+                'Object amplitude difference','Object phase difference','Probe amplitude difference','Probe phase difference'}, ...
+                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uipSelectRegion      = mic.ui.common.Popup('cLabel', 'Select analysis region', 'ceOptions', {'Entire region','Compute from probe'}, ...
+                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uibAnalyze        = mic.ui.common.Button('cText', 'Analyze', 'fhDirectCallback', @(src, evt)this.cb(src));
             
             %% Add buttons to state flag lists
             this.ceUIBStateControlled = {};
@@ -542,6 +553,8 @@ classdef PIE_Analyze < mic.Base
                     
                 case this.uibLoadMask
                     
+                case this.uibAnalyze
+                    this.analyze();
                     
                 case {this.uieZrn, this.uieNonlinearity}
                     this.validateCouplesEditBox(src, '[]');
@@ -1035,15 +1048,17 @@ classdef PIE_Analyze < mic.Base
             
             % generate probe phase based on zernike polynomials
             zfn         =   PIE.utils.generateZernikeFunction(zernCouples,N,1); % generate zernike function form based on zernike couples
-            [x_um,y_um] = meshgrid(linspace(-detSize_um/2,detSize_um/2,N));
-            if NA>0
-                r = sin(atan(sqrt(x_um.^2+y_um.^2)/(z_um+df_um)))/NA;
-                th = atan2(y_um,x_um);
-            else
-                r = sqrt(x_um.^2+y_um.^2)/Rc_um;
-                th = atan2(y_um,x_um);
+            if ~FP
+                [x_um,y_um] = meshgrid(linspace(-detSize_um/2,detSize_um/2,N));
+                if NA>0
+                    r = sin(atan(sqrt(x_um.^2+y_um.^2)/(z_um+df_um)))/NA;
+                    th = atan2(y_um,x_um);
+                else
+                    r = sqrt(x_um.^2+y_um.^2)/Rc_um;
+                    th = atan2(y_um,x_um);
+                end
+                probe_pha = 2*pi*zfn(r,th);
             end
-            probe_pha = 2*pi*zfn(r,th);
             
             %% initial probe
             if ~FP
@@ -1068,12 +1083,17 @@ classdef PIE_Analyze < mic.Base
                 samplingFactor_obj = lambda_um.*z_um/(N*dc_um*do_um);
                 [xp_um,yp_um] = meshgrid(linspace(-do_um*N/2,do_um*N/2,N));
                 Lo_um = this.uieLo.get()*1000;
+                NAo = this.uieNAo.get();
                 Rprobe_um = z_um*tan(asin(NA));
                 probe_amp = zeros(N);
                 probe_amp(xp_um.^2+yp_um.^2<= Rprobe_um.^2) = 1;
-                kr = sin(atan(sxp_um/Lo_um));
-                defocus_pha = df_um*2*pi/lambda_um*sqrt(1-kx.^2+ky.^2);
-                probe = probe_amp.*exp(1i*probe_pha);
+                kr = sin(atan(sqrt(xp_um.^2+yp_um.^2)/Lo_um));
+                phi = atan2(yp_um,xp_um);
+                kx = kr.*cos(phi);
+                ky = kr.*sin(phi);
+                defocus_pha = df_um*2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
+                probe_pha = 2*pi*zfn(kr/NAo,phi);
+                probe = probe_amp.*exp(1i*probe_pha).*exp(1i*defocus_pha);
             end
             if initialGuess
                 this.dProbeGuess = single(probe);
@@ -1467,20 +1487,110 @@ classdef PIE_Analyze < mic.Base
         
         
         function analyze(this)
+            % load parameters
+            selectedObject = this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()};
+            selectedRegion = this.uipSelectRegion.getOptions{this.uipSelectRegion.getSelectedIndex()};
+            FP = this.uicbFourierPtychography.get();
+            probeType = this.uipProbeType.getOptions{this.uipProbeType.getSelectedIndex()};
+            N           = this.uieRes.get();
+            NA           = this.uieNA.get();
+            Rc_um   = this.uieRprobe.get()*1000;
+            lambda_um   = this.uieLambda.get()/1000;
+            df_um       = this.uiez1.get()*1000;% negative sign corresponds convergent
+            z_um       = this.uiez2.get()*1000;
+            scanSteps = this.uieScanSteps.get();
+            detSize_um  = this.uieDetSize.get()*1000;
+            propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+            dc_um       = detSize_um/N; % detector pixel pitch
+            
+            if strcmp(propagator,'fourier')
+                do_um = lambda_um*z_um/N/dc_um;
+            else
+                do_um = dc_um; % object pixel pitch
+            end
+            dPosShifts = eval(this.uiePhaseStepsSim.get());
+            Rm = round(dPosShifts(:,1)*1000/do_um);
+            Rn = round(dPosShifts(:,2)*1000/do_um);
+            
+            % calculate probe radius
+            if ~FP
+                switch probeType
+                    case 'Defocus wave'
+                        Rprobe_um = abs(df_um)*tan(asin(NA));
+                    case 'Plane wave'
+                        Rprobe_um = Rc_um;
+                end
+            else 
+                Rprobe_um = z_um*tan(asin(NA));
+            end
+                Rpix = Rprobe_um/do_um;
+            if FP 
+                objectRecon = fftshift(fft2(fftshift(this.dObjectRecon)));
+                probeRecon = fftshift(fft2(fftshift(this.dProbeRecon)));
+                objectSpectrum = this.dObjectRecon;
+                probeSpectrum = this.dProbeRecon;
+                objectDiff = objectRecon - fftshift(fft2(fftshift(this.dObject)));
+                probeDiff = probeRecon - fftshift(fft2(fftshift(this.dProbe)));
+            else
+                objectRecon = this.dObjectRecon;
+                probeRecon = this.dProbeRecon;
+                objectSpectrum = fftshift(fft2(fftshift(this.dObjectRecon)));
+                probeSpectrum = fftshift(fft2(fftshift(this.dProbeRecon)));
+                objectDiff = objectRecon - this.dObject;
+                probeDiff = probeRecon - this.dProbe;
+            end
+              
+            switch selectedObject
+                case 'Object amplitude'
+                    this.dSelectedObject = abs(objectRecon);
+                case 'Object phase'
+                    this.dSelectedObject = atan2(imag(objectRecon),real(objectRecon));
+                case 'Probe amplitude'
+                    this.dSelectedObject = abs(probeRecon);
+                case 'Probe phase'
+                    this.dSelectedObject = atan2(imag(probeRecon),real(probeRecon));
+                case 'Object spectrum amplitude'
+                    this.dSelectedObject = abs(objectSpectrum);
+                case 'Object spectrum phase'
+                    this.dSelectedObject = atan2(imag(objectSpectrum),real(objectSpectrum));
+                case 'Probe spectrum amplitude'
+                    this.dSelectedObjec = abs(probeSpectrum);
+                case 'Probe spectrum phase'
+                    this.dSelectedObjec = atan2(imag(probeSpectrum),real(probeSpectrum));
+                case 'Object amplitude difference'
+                    this.dSelectedObject = abs(objectDiff);
+                case 'Object phase difference'
+                    this.dSelectedObject = atan2(imag(objectDiff),real(objectDiff));
+                case 'Probe amplitude difference'
+                    this.dSelectedObjec = abs(probeDiff);
+                case 'Probe phase difference'
+                    this.dSelectedObject = atan2(imag(probeDiff),real(probeDiff));
+            end
+            
+            [K,L] = size(this.dSelectedObject);
+            
+            switch selectedRegion
+                case 'Entire region'
+                    this.dAnalysisMask = ones(K,L);
+                case 'Compute from probe'
+                    this.dAnalysisMask = ones(K,L);
+                    probeRegion = pinhole(Rpix,N,N);
+                    for i = 1:scanSteps
+                        for j = 1:scanSteps
+                            this.dAnalysisMask(Rm(i)+[1:N],Rn(j)+[1:N]) = ...
+                                probeRegion.*this.dAnalysisMask(Rpix(1)+[1:N],Rpix(2)+[1:N]);
+                        end
+                    end
+            end
             
             % Make phase tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8ANALYSIS);
             
             % Plot wavefronts on phase tab
-            this.replot(this.U8RECONSTRUCTION, []);
-            %analysislog
-            if ~isequal(this.ceAnalysisPara,ceAnalysisParas)&&strcmp(this.uitgSelectDataSource.getSelectedTabName(),'Load P/S Series')
-                this.ceAnalysisPara=ceAnalysisParas;
-                this.replot(this.U8LOG, []);
-                this.SaveAnalysisLog();%save analysis log
-            end
+            this.replot(this.U8ANALYSIS, []);
+            
             % Set state:
-            this.setState(this.U8STATE_RECONSTRUCTED);
+            this.setState(this.U8STATE_ANALYZED);
         end
         
         function SaveAnalysisLog(this)
@@ -2068,7 +2178,7 @@ classdef PIE_Analyze < mic.Base
                             xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
                             yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
                         else
-                            object = this.dObjectGuess;
+                            object = this.dObject;
                             xo_mm = [1:L]*do_um/1000; % object coordinates
                             yo_mm = [1:K]*do_um/1000; % object coordinates
                         end
@@ -2134,7 +2244,7 @@ classdef PIE_Analyze < mic.Base
                             xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
                             yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
                         else
-                            object = this.dObjectGuess;
+                            object = this.dObjectRecon;
                             xo_mm = [1:L]*do_um/1000; % object coordinates
                             yo_mm = [1:K]*do_um/1000; % object coordinates
                         end
@@ -2148,7 +2258,10 @@ classdef PIE_Analyze < mic.Base
                         this.haReconObjectPha.Title.String = 'Object phase';this.haReconObjectPha.XLabel.String = 'mm';this.haReconObjectPha.YLabel.String = 'mm';
                         drawnow;
                     case this.U8ANALYSIS
+                        selectedObject = this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()};
                         
+                        imagesc(this.haAnalysis, x_mm,x_mm,this.dSelectedObject.*this.dAnalysisMask);colorbar(this.haReconProbeAmp);axis(this.haReconProbeAmp,'xy');
+                        this.haReconProbeAmp.Title.String = selectedObject; this.haReconProbeAmp.XLabel.String = 'mm';this.haReconProbeAmp.YLabel.String = 'mm';
                         
                     case this.U8LOG
                         this.ceAnalysisTable(end+1,1)={datestr(now, 31)};
@@ -2554,6 +2667,10 @@ classdef PIE_Analyze < mic.Base
                 'Position', [10 10 600 170] ...
                 );
             drawnow
+            
+            this.uipSelectObject.build     (this.hpAnalysis, 20, 20, 180, 20);
+            this.uipSelectRegion.build       (this.hpAnalysis, 20, 70, 180, 20);
+            this.uibAnalyze.build   (this.hpAnalysis, 415, 140, 160, 20);
 
             % Set hsa offset:
             this.hsaInterferogram.setAxesOffset([dTgPx + uitData.Position(1), dTgPy + uitData.Position(2)]);
