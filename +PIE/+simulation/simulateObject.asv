@@ -1,28 +1,27 @@
-%% this script is used to simulate and save object
+%% this script is used to simulate and save object 
 
 N= 1000;
 
 %% EUV mask
 object_amp = ones(N);
-object_phase = zeros(N);
+object_pha = zeros(N);
 sizeRange = 12:4:40;
 ampRange = 0:0.2:0.8;
 phaRange = 0:pi/6:1.5*pi;
-[posx,posy]= meshgrid(25:50:975);
+[posx,posy= = meshgrid(25:50:975);
 pos= [posx(:),posy(:)];
 m=1;
-for i =1:length(sizeRange)
-    for j =1:length(ampRange)
-        for k =1:length(phaRange)
-            object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=ampRange(j);
-            
-            object_phase(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=phaRange(k) ;
-            m = m+1;
-        end
-    end
-end
-figure,mesh(object_amp);
-figure,mesh(object_pha);
+ for i =1:length(sizeRange)
+     for j =1:length(ampRange)
+         for k =1:length(phaRange)
+             object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=...
+                 object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])*ampRange(j);
+             object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=...
+                 object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])*ampRange(j);
+         end
+     end
+ end
+
 %% vaccum
 
 object_amp = ones(N);
@@ -56,4 +55,4 @@ object_phase(N/2:end,1:N/2)=pi/2*3;
 figure,mesh(object_phase)
 %% save object
 object = object_amp.*exp(1i*object_phase);
-save('../../data/object/EUV mask.mat','object');
+save('../../data/object/fourQuadrantPhase.mat','object');

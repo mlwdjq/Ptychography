@@ -410,11 +410,11 @@ classdef PIE_Analyze < mic.Base
             this.uieMag = mic.ui.common.Edit('cLabel', 'Magnification', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieNAo.set(0);
             this.uieLo.set(3);
-            this.uieMag.set(this.uiez2.get()/this.uieLo.get());
+            
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             dN = this.uieScanSteps.get();
             Lo_mm = this.uieLo.get();
-            
+            this.uieMag.set(this.uiez2.get()/Lo_mm);
             dA =atan((eval(this.uiePhaseStepsSim.get())-dN/2)/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
@@ -934,6 +934,22 @@ classdef PIE_Analyze < mic.Base
                         lambda_mm =this.uieLambda.get()/1000000;
                         Rc_mm = 0.61*lambda_mm/NAi;
                         this.uieRprobe.set(Rc_mm);
+                        this.uieMag.set(Li_mm/Lo_mm);
+                    end
+                case this.uieMag
+                    if this.uicbFourierPtychography.get()
+                        Li_mm = this.uiez2.get();
+                        NAo = this.uieNAo.get();
+                        Mag = this.uieMag.get();
+                        Lo_mm = Li_mm/Mag;
+                        if Lo_mm - this.uieLo.get()>1e-4
+                            this.uieLo.set(Lo_mm);
+                            NAi = sin(atan(Lo_mm/Li_mm*tan(asin(NAo))));
+                            this.uieNA.set(NAi);
+                            lambda_mm =this.uieLambda.get()/1000000;
+                            Rc_mm = 0.61*lambda_mm/NAi;
+                            this.uieRprobe.set(Rc_mm);
+                        end
                     end
                     
                 case this.uibLoadSegment
@@ -1051,9 +1067,12 @@ classdef PIE_Analyze < mic.Base
             else % define probe in pupil space for fourier ptychography
                 samplingFactor_obj = lambda_um.*z_um/(N*dc_um*do_um);
                 [xp_um,yp_um] = meshgrid(linspace(-do_um*N/2,do_um*N/2,N));
+                Lo_um = this.uieLo.get()*1000;
                 Rprobe_um = z_um*tan(asin(NA));
                 probe_amp = zeros(N);
                 probe_amp(xp_um.^2+yp_um.^2<= Rprobe_um.^2) = 1;
+                kr = sin(atan(sxp_um/Lo_um));
+                defocus_pha = df_um*2*pi/lambda_um*sqrt(1-kx.^2+ky.^2);
                 probe = probe_amp.*exp(1i*probe_pha);
             end
             if initialGuess
@@ -2464,7 +2483,8 @@ classdef PIE_Analyze < mic.Base
             uitFPM = this.uitgSelectDataSource.getTabByName('FPM');drawnow
             this.uieNAo.build          (uitFPM, 10, 10, 90, 20);
             this.uieLo.build          (uitFPM, 10, 50, 90, 20);
-            this.uieScanAngles.build  (uitFPM, 10, 90, 170, 20);
+            this.uieMag.build          (uitFPM, 10, 90, 90, 20);
+            this.uieScanAngles.build  (uitFPM, 10, 130, 170, 20);
             
             % Sim segment
             uitSimSegment = this.uitgSelectDataSource.getTabByName('Sim segments');drawnow

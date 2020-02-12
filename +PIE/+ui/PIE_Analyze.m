@@ -1035,15 +1035,17 @@ classdef PIE_Analyze < mic.Base
             
             % generate probe phase based on zernike polynomials
             zfn         =   PIE.utils.generateZernikeFunction(zernCouples,N,1); % generate zernike function form based on zernike couples
-            [x_um,y_um] = meshgrid(linspace(-detSize_um/2,detSize_um/2,N));
-            if NA>0
-                r = sin(atan(sqrt(x_um.^2+y_um.^2)/(z_um+df_um)))/NA;
-                th = atan2(y_um,x_um);
-            else
-                r = sqrt(x_um.^2+y_um.^2)/Rc_um;
-                th = atan2(y_um,x_um);
+            if ~FP
+                [x_um,y_um] = meshgrid(linspace(-detSize_um/2,detSize_um/2,N));
+                if NA>0
+                    r = sin(atan(sqrt(x_um.^2+y_um.^2)/(z_um+df_um)))/NA;
+                    th = atan2(y_um,x_um);
+                else
+                    r = sqrt(x_um.^2+y_um.^2)/Rc_um;
+                    th = atan2(y_um,x_um);
+                end
+                probe_pha = 2*pi*zfn(r,th);
             end
-            probe_pha = 2*pi*zfn(r,th);
             
             %% initial probe
             if ~FP
@@ -1067,10 +1069,18 @@ classdef PIE_Analyze < mic.Base
             else % define probe in pupil space for fourier ptychography
                 samplingFactor_obj = lambda_um.*z_um/(N*dc_um*do_um);
                 [xp_um,yp_um] = meshgrid(linspace(-do_um*N/2,do_um*N/2,N));
+                Lo_um = this.uieLo.get()*1000;
+                NAo = this.uieNAo.get();
                 Rprobe_um = z_um*tan(asin(NA));
                 probe_amp = zeros(N);
                 probe_amp(xp_um.^2+yp_um.^2<= Rprobe_um.^2) = 1;
-                probe = probe_amp.*exp(1i*probe_pha);
+                kr = sin(atan(sqrt(xp_um.^2+yp_um.^2)/Lo_um));
+                phi = atan2(yp_um,xp_um);
+                kx = kr.*cos(phi);
+                ky = kr.*sin(phi);
+                defocus_pha = df_um*2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
+                probe_pha = 2*pi*zfn(kr/NAo,phi);
+                probe = probe_amp.*exp(1i*probe_pha).*exp(1i*defocus_pha);
             end
             if initialGuess
                 this.dProbeGuess = single(probe);
@@ -2065,7 +2075,7 @@ classdef PIE_Analyze < mic.Base
                             xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
                             yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
                         else
-                            object = this.dObjectGuess;
+                            object = this.dObject;
                             xo_mm = [1:L]*do_um/1000; % object coordinates
                             yo_mm = [1:K]*do_um/1000; % object coordinates
                         end
@@ -2131,7 +2141,7 @@ classdef PIE_Analyze < mic.Base
                             xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
                             yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
                         else
-                            object = this.dObjectGuess;
+                            object = this.dObjectRecon;
                             xo_mm = [1:L]*do_um/1000; % object coordinates
                             yo_mm = [1:K]*do_um/1000; % object coordinates
                         end
