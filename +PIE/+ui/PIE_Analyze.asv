@@ -1705,7 +1705,7 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = dc_um/1000;
                     end
                 case 'Object amplitude difference'
-                    this.dSelectedObject = abs(objectRecon)./mean(abs(objectRecon(this.dAnalysisMask==1))) - abs(objectOri)./mean(abs(objectOri(this.dAnalysisMask==1)));
+                    this.dSelectedObject = abs(objectRecon)./max(abs(objectRecon(:))) - abs(objectOri);
                     if FP
                         this.dUnit_mm = dc_um/1000/Magnification ;
                     else
@@ -1720,7 +1720,7 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = do_um/1000;
                     end
                 case 'Probe amplitude difference'
-                    this.dSelectedObject = abs(probeRecon)./mean(abs(probeRecon(this.dAnalysisMask==1))) - abs(probeOri)./mean(abs(probeOri(this.dAnalysisMask==1)));
+                    this.dSelectedObject = abs(probeRecon)./max(abs(probeRecon(:))) - abs(probeOri);
                     if FP
                         this.dUnit_mm = dc_um/1000/Magnification ;
                     else
@@ -2080,7 +2080,7 @@ classdef PIE_Analyze < mic.Base
                 case this.prControlsSetup
                     ceFields = {'uieLambda', 'uieScanRange', 'uieNA', 'uiez2', ...
                         'uieGratTilt', 'uieDetTilt', 'uieGlobalRot', 'uieDetSize',...
-                        'uieCenterObstruction','uieBinning','uiez1','uieScanSteps'};
+                        'uieCenterObstruction','uieBinning'};
                     for k = 1:length(ceFields)
                         store(end + 1) = this.(ceFields{k}).get(); %#ok<AGROW>
                     end
@@ -2107,7 +2107,7 @@ classdef PIE_Analyze < mic.Base
                 case this.prControlsSetup
                     ceFields = {'uieLambda', 'uieScanRange', 'uieNA', 'uiez2', ...
                         'uieGratTilt', 'uieDetTilt', 'uieGlobalRot', 'uieDetSize',...
-                        'uieCenterObstruction','uieBinning','uiez1','uieScanSteps'};
+                        'uieCenterObstruction','uieBinning'};
                     for k = 1:length(ceFields)
                         this.(ceFields{k}).set(dRecall(k));
                     end
@@ -2355,7 +2355,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObject(:,:,u8ModeId));
+                        [K,L] = size(this.dObject);
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
@@ -2389,7 +2389,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
+                        [K,L] = size(this.dObjectGuess);
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
@@ -2423,7 +2423,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
+                        [K,L] = size(this.dObjectGuess);
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
