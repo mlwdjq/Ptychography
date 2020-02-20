@@ -21,8 +21,9 @@ for i =1:length(sizeRange)
         end
     end
 end
+
 figure,mesh(object_amp);
-figure,mesh(object_pha);
+figure,mesh(object_phase);
 %% vaccum
 
 object_amp = ones(N);
@@ -56,4 +57,5 @@ object_phase(N/2:end,1:N/2)=pi/2*3;
 figure,mesh(object_phase)
 %% save object
 object = object_amp.*exp(1i*object_phase);
-save('../../data/object/EUV mask.mat','object');
+% object = fftshift(object);
+save('../../data/object/EUV mask shifted.mat','object');

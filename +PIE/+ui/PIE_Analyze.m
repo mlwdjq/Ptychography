@@ -78,6 +78,7 @@ classdef PIE_Analyze < mic.Base
         dObjectRecon
         dSelectedObject
         dUnit_mm
+        dError
         
         % pupil guides
         dBeamWidthEstPx = 1
@@ -416,7 +417,7 @@ classdef PIE_Analyze < mic.Base
             this.uieProbeOffset       = mic.ui.common.Edit('cLabel', 'Probe offset (mm)', 'cType', 'c', ...
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieProbeOffset.set('[]');
-            
+            this.uipPropagator.setSelectedIndex(uint8(2));
             % Controls:Data:FPM
             this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieLo = mic.ui.common.Edit('cLabel', 'Obj. Length (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -493,7 +494,7 @@ classdef PIE_Analyze < mic.Base
             
             %% Controls:Analysis
             this.uipSelectObject      = mic.ui.common.Popup('cLabel', 'Select analysis object', 'ceOptions',...
-                {'Object amplitude','Object phase','Probe amplitude','Probe phase',...
+                {'Residual errors','Object amplitude','Object phase','Probe amplitude','Probe phase',...
                 'Object spectrum amplitude','Object spectrum phase','Probe spectrum amplitude','Probe spectrum phase',...
                 'Object amplitude difference','Object phase difference','Probe amplitude difference','Probe phase difference'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
@@ -1576,6 +1577,7 @@ classdef PIE_Analyze < mic.Base
                 this.uitIteration.set(iterationStr);drawnow;
                 
                 if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<0e-7)||errors(i)<this.uieAccuracy.get()))
+                    this.dError = errors;
                     % Make phase tab active:
                     this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
                     % Plot wavefronts on phase tab
@@ -2447,15 +2449,24 @@ classdef PIE_Analyze < mic.Base
                         
                     case this.U8ANALYSIS
                         selectedObject = this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()};
-                        u8ModeId = this.uilSelectMode.getSelectedIndexes();
-                        object = this.dSelectedObject(:,:,u8ModeId);
-                        [K,L] = size(object);
-                        x_mm = this.dUnit_mm*[1:L];
-                        y_mm = this.dUnit_mm*[1:K];
-                        imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
-                        this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'mm';this.haAnalysis.YLabel.String = 'mm';
-                        RMSStr = ['RMS: ',num2str(std(object(this.dAnalysisMask==1)))];
-                        this.uitRMS.set(RMSStr);
+                        if strcmp(selectedObject,'Residual errors') ==0
+                            u8ModeId = this.uilSelectMode.getSelectedIndexes();
+                            object = this.dSelectedObject(:,:,u8ModeId);
+                            [K,L] = size(object);
+                            x_mm = this.dUnit_mm*[1:L];
+                            y_mm = this.dUnit_mm*[1:K];
+                            imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
+                            this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'mm';this.haAnalysis.YLabel.String = 'mm';
+                            RMSStr = ['RMS: ',num2str(std(object(this.dAnalysisMask==1)))];
+                            this.uitRMS.set(RMSStr);
+                        else
+                            iteration = length(this.dError);
+                            h = plot(this.haAnalysis,1:iteration,log10(this.dError));
+                            this.haAnalysis.Title.String = selectedObject; 
+                            set(h,'lineWidth',2);
+                            this.haAnalysis.FontSize = 12;
+                            this.haAnalysis.XLabel.String = 'Iteration times';this.haAnalysis.YLabel.String = 'Residual errors (log10)';
+                        end
                         drawnow;
                         
                     case this.U8LOG

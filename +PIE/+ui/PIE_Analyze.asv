@@ -416,7 +416,7 @@ classdef PIE_Analyze < mic.Base
             this.uieProbeOffset       = mic.ui.common.Edit('cLabel', 'Probe offset (mm)', 'cType', 'c', ...
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieProbeOffset.set('[]');
-            
+            this.uipPropagator.setSelectedIndex(uint8(2));
             % Controls:Data:FPM
             this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieLo = mic.ui.common.Edit('cLabel', 'Obj. Length (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
@@ -493,7 +493,7 @@ classdef PIE_Analyze < mic.Base
             
             %% Controls:Analysis
             this.uipSelectObject      = mic.ui.common.Popup('cLabel', 'Select analysis object', 'ceOptions',...
-                {'Object amplitude','Object phase','Probe amplitude','Probe phase',...
+                {'Residual errors','Object amplitude','Object phase','Probe amplitude','Probe phase',...
                 'Object spectrum amplitude','Object spectrum phase','Probe spectrum amplitude','Probe spectrum phase',...
                 'Object amplitude difference','Object phase difference','Probe amplitude difference','Probe phase difference'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
@@ -1576,6 +1576,7 @@ classdef PIE_Analyze < mic.Base
                 this.uitIteration.set(iterationStr);drawnow;
                 
                 if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<0e-7)||errors(i)<this.uieAccuracy.get()))
+                    this.dError = errors;
                     % Make phase tab active:
                     this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
                     % Plot wavefronts on phase tab
@@ -1705,7 +1706,7 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = dc_um/1000;
                     end
                 case 'Object amplitude difference'
-                    this.dSelectedObject = abs(objectRecon)./max(abs(objectRecon(:))) - abs(objectOri);
+                    this.dSelectedObject = abs(objectRecon)./mean(abs(objectRecon(this.dAnalysisMask==1))) - abs(objectOri)./mean(abs(objectOri(this.dAnalysisMask==1)));
                     if FP
                         this.dUnit_mm = dc_um/1000/Magnification ;
                     else
@@ -1720,7 +1721,7 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = do_um/1000;
                     end
                 case 'Probe amplitude difference'
-                    this.dSelectedObject = abs(probeRecon)./max(abs(probeRecon(:))) - abs(probeOri);
+                    this.dSelectedObject = abs(probeRecon)./mean(abs(probeRecon(this.dAnalysisMask==1))) - abs(probeOri)./mean(abs(probeOri(this.dAnalysisMask==1)));
                     if FP
                         this.dUnit_mm = dc_um/1000/Magnification ;
                     else
@@ -2080,7 +2081,7 @@ classdef PIE_Analyze < mic.Base
                 case this.prControlsSetup
                     ceFields = {'uieLambda', 'uieScanRange', 'uieNA', 'uiez2', ...
                         'uieGratTilt', 'uieDetTilt', 'uieGlobalRot', 'uieDetSize',...
-                        'uieCenterObstruction','uieBinning'};
+                        'uieCenterObstruction','uieBinning','uiez1','uieScanSteps'};
                     for k = 1:length(ceFields)
                         store(end + 1) = this.(ceFields{k}).get(); %#ok<AGROW>
                     end
@@ -2107,7 +2108,7 @@ classdef PIE_Analyze < mic.Base
                 case this.prControlsSetup
                     ceFields = {'uieLambda', 'uieScanRange', 'uieNA', 'uiez2', ...
                         'uieGratTilt', 'uieDetTilt', 'uieGlobalRot', 'uieDetSize',...
-                        'uieCenterObstruction','uieBinning'};
+                        'uieCenterObstruction','uieBinning','uiez1','uieScanSteps'};
                     for k = 1:length(ceFields)
                         this.(ceFields{k}).set(dRecall(k));
                     end
@@ -2355,7 +2356,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObject);
+                        [K,L] = size(this.dObject(:,:,u8ModeId));
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
@@ -2389,7 +2390,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObjectGuess);
+                        [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
@@ -2423,7 +2424,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             do_um = dc_um; % object pixel pitch
                         end
-                        [K,L] = size(this.dObjectGuess);
+                        [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
                         xp_mm = [1:N]*do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
@@ -2447,15 +2448,20 @@ classdef PIE_Analyze < mic.Base
                         
                     case this.U8ANALYSIS
                         selectedObject = this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()};
-                        u8ModeId = this.uilSelectMode.getSelectedIndexes();
-                        object = this.dSelectedObject(:,:,u8ModeId);
-                        [K,L] = size(object);
-                        x_mm = this.dUnit_mm*[1:L];
-                        y_mm = this.dUnit_mm*[1:K];
-                        imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
-                        this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'mm';this.haAnalysis.YLabel.String = 'mm';
-                        RMSStr = ['RMS: ',num2str(std(object(this.dAnalysisMask==1)))];
-                        this.uitRMS.set(RMSStr);
+                        if strcmp(selectedObject,'Residual errors') ==0
+                            u8ModeId = this.uilSelectMode.getSelectedIndexes();
+                            object = this.dSelectedObject(:,:,u8ModeId);
+                            [K,L] = size(object);
+                            x_mm = this.dUnit_mm*[1:L];
+                            y_mm = this.dUnit_mm*[1:K];
+                            imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
+                            this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'mm';this.haAnalysis.YLabel.String = 'mm';
+                            RMSStr = ['RMS: ',num2str(std(object(this.dAnalysisMask==1)))];
+                            this.uitRMS.set(RMSStr);
+                        else
+                            iteration = this.uieIteration.get();
+                            plot()
+                        end
                         drawnow;
                         
                     case this.U8LOG
