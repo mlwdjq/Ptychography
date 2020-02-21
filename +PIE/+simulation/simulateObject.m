@@ -30,7 +30,7 @@ object_amp = ones(N);
 object_phase = zeros(N);
 
 %% amplitude grating
-[x,y] = meshgrid(linspace(-1,1,N));
+[x,y] = meshgrid(linspace(-1.11036,1.11036,N));
 
 object_amp =4+cos(2*pi*5*x)+cos(2*pi*5*y);
 object_amp(object_amp<4) =0;
@@ -58,4 +58,4 @@ figure,mesh(object_phase)
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/EUV mask shifted.mat','object');
+save('../../data/object/MET5Grating.mat','object');

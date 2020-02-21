@@ -2545,11 +2545,11 @@ classdef PIE_Analyze < mic.Base
                             this.uitRMS.set(RMSStr);
                         else
                             iteration = length(this.dError);
-                            h = plot(this.haAnalysis,1:iteration,log10(this.dError));
-                            this.haAnalysis.Title.String = selectedObject;
+                            h = plot(this.haZernikeDecomp,1:iteration,log10(this.dError));
+                            this.haZernikeDecomp.Title.String = selectedObject;
                             set(h,'lineWidth',2);
-                            this.haAnalysis.FontSize = 12;
-                            this.haAnalysis.XLabel.String = 'Iteration times';this.haAnalysis.YLabel.String = 'Residual errors (log10)';
+                            this.haZernikeDecomp.FontSize = 12;
+                            this.haZernikeDecomp.XLabel.String = 'Iteration times';this.haZernikeDecomp.YLabel.String = 'Residual errors (log10)';
                         end
                         drawnow;
                         
@@ -2935,7 +2935,7 @@ classdef PIE_Analyze < mic.Base
             uitWDD = this.uitgAnalysisDomain.getTabByName('WDD');
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
             this.uibStop.build  (this.hpPhase, 415, 130, 160, 20);
-            this.uitIteration.build           (this.hpPhase, 200, 20, 250, 20);
+            this.uitIteration.build           (this.hpPhase, 190, 20, 250, 20);
             this.uieAlpha.build           (this.hpPhase, 420, 90, 70, 20);
             this.uieBeta.build           (this.hpPhase, 500, 90, 70, 20);
             this.uieMaxIteration.build           (this.hpPhase, 420, 50, 70, 20);
