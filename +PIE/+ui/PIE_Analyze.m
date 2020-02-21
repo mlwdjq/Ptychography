@@ -201,6 +201,7 @@ classdef PIE_Analyze < mic.Base
         uitOverlap
         uitSampling
         uieProbeOffset
+        uibCopyProbe
         
         % Controls:Data:FPM
         uieNAo
@@ -246,6 +247,7 @@ classdef PIE_Analyze < mic.Base
         uieBeta
         uieMaxIteration
         uieAccuracy
+        uicbGPU
         
         
         % Controls: Reconstruction: rPIE
@@ -401,13 +403,14 @@ classdef PIE_Analyze < mic.Base
             % Controls:Data:Probe and object
             this.uipProbeType     = mic.ui.common.Popup('cLabel', 'Probe type', 'ceOptions', {'Defocus wave','Plane wave'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vacuum','Cameraman','Low resolution'}, ...
+            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vacuum','Cameraman','Low resolution','Load object'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uipPropagator     = mic.ui.common.Popup('cLabel', 'Propagator', 'ceOptions', {'angular spectrum','fourier','fresnel'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibLoadProbe    = mic.ui.common.Button('cText', 'Load probe', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibLoadObject    = mic.ui.common.Button('cText', 'Load object', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibGenProbeObject   = mic.ui.common.Button('cText', 'Generate', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uibCopyProbe   = mic.ui.common.Button('cText', 'Copy probe', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieRprobe = mic.ui.common.Edit('cLabel', 'Probe radius on det (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieRprobe.set(this.uieDetSize.get()/4);
             this.uicbGuess = mic.ui.common.Checkbox('cLabel', 'Initial guess',  'fhDirectCallback', @(src, evt)this.cb(src));
@@ -468,6 +471,8 @@ classdef PIE_Analyze < mic.Base
             this.uieBeta                = mic.ui.common.Edit('cLabel', 'Beta (P)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieMaxIteration              = mic.ui.common.Edit('cLabel', 'Max iteration', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieAccuracy              = mic.ui.common.Edit('cLabel', 'Accuracy', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uicbGPU = mic.ui.common.Checkbox('cLabel', 'GPU acceleration',  'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uicbGPU.set(false);
             this.uieAlpha.set(1);
             this.uieBeta.set(1);
             this.uieMaxIteration.set(1000);
@@ -839,6 +844,8 @@ classdef PIE_Analyze < mic.Base
                 case this.uibLoadProbe
                     cDataDir = fullfile(this.cAppPath,  '..', '..', 'Data','probe');
                     [fn,pn]=uigetfile({'*.mat','Probe (*.mat)'},'Loading',cDataDir);
+                    u8ModeId = this.uilSelectMode.getSelectedIndexes();
+                    modeNumber = this.uieModeNumber.get();
                     fileformat=fn(end-2:end);
                     filename= strcat(pn,fn);
                     switch fileformat
@@ -852,9 +859,15 @@ classdef PIE_Analyze < mic.Base
                     
                     initialGuess = this.uicbGuess.get();
                     if initialGuess
-                        this.dProbeGuess = interp2(p,q,probe,m,n,'nearest');
+                        this.dProbeGuess(:,:,u8ModeId) = interp2(p,q,probe,m,n,'nearest');
+                        for mn = 2:modeNumber
+                            this.dProbeGuess(:,:,mn) = this.dProbeGuess(:,:,1);
+                        end
                     else
-                        this.dProbe = interp2(p,q,probe,m,n,'nearest');
+                        this.dProbe(:,:,u8ModeId) = interp2(p,q,probe,m,n,'nearest');
+                        for mn = 2:modeNumber
+                            this.dProbe(:,:,mn) = this.dProbe(:,:,1);
+                        end
                     end
                     if initialGuess
                         % Make phase tab active:
@@ -888,6 +901,8 @@ classdef PIE_Analyze < mic.Base
                     detSize_um  = this.uieDetSize.get()*1000;
                     propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
                     dc_um       = detSize_um/N; % detector pixel pitch
+                    u8ModeId = this.uilSelectMode.getSelectedIndexes();
+                    modeNumber = this.uieModeNumber.get();
                     samplingFactor_det = lambda_um.*z_um/(dc_um*N*dc_um);
                     if samplingFactor_det>1
                         fprintf('Please adjust configurations for propagation sampling\n');
@@ -909,9 +924,15 @@ classdef PIE_Analyze < mic.Base
                     
                     initialGuess = this.uicbGuess.get();
                     if initialGuess
-                        this.dObjectGuess = interp2(p,q,object,m,n,'nearest');
+                        this.dObjectGuess(:,:,u8ModeId) = interp2(p,q,object,m,n,'nearest');
+                        for mn = 2:modeNumber
+                            this.dObjectGuess(:,:,mn) = this.dObjectGuess(:,:,1);
+                        end
                     else
-                        this.dObject = interp2(p,q,object,m,n,'nearest');
+                        this.dObject(:,:,u8ModeId) = interp2(p,q,object,m,n,'nearest');
+                        for mn = 2:modeNumber
+                            this.dObject(:,:,mn) = this.dObject(:,:,1);
+                        end
                     end
                     if initialGuess
                         % Make phase tab active:
@@ -932,6 +953,12 @@ classdef PIE_Analyze < mic.Base
                 case this.uibGenProbeObject
                     this.generateProbeObject();
                     
+                case this.uibCopyProbe
+                    if this.uicbGuess.get()
+                        this.dProbe = this.dProbeGuess;
+                    else
+                        this.dProbeGuess = this.dProbe;
+                    end
                     % FPM
                 case this.uicbFourierPtychography
                     if this.uicbFourierPtychography.get()
@@ -1041,7 +1068,7 @@ classdef PIE_Analyze < mic.Base
                         ceModeStr{i} =['Mode ',num2str(i)];
                     end
                     try
-                    this.uilSelectMode.setOptions(ceModeStr);
+                        this.uilSelectMode.setOptions(ceModeStr);
                     catch
                     end
                     
@@ -1228,6 +1255,12 @@ classdef PIE_Analyze < mic.Base
                 case 'Low resolution'
                     exitWave = this.dObject.*pad2(probe,K,L);
                     object = PIE.utils.postPropagate (exitWave,propagator,1,1);
+                case 'Load object'
+                    if initialGuess
+                        object = this.dObjectGuess(:,:,u8ModeId);
+                    else
+                        object = this.dObject(:,:,u8ModeId);
+                    end
             end
             if FP
                 object =  PIE.utils.Propagate (object,propagator,do_um,lambda_um,-1);
@@ -1521,71 +1554,122 @@ classdef PIE_Analyze < mic.Base
             gamma = this.uieGamma.get(); % weight factor for rPIE, 1 for ePIE
             delta = this.uieDelta.get(); % weight factor for RAAR, 1 for DM
             correctPos = this.uicbCorrectPos.get();
+            GPUacceleration = this.uicbGPU.get();
             correctMethod =  this.uipCorrectMethod.getOptions{this.uipCorrectMethod.getSelectedIndex()};
-            % iterations for reconstruction
-            for i = 1:iteration
-                tempError = 0;
+            if GPUacceleration == 0
+                % iterations for reconstruction
+                for i = 1:iteration
+                    tempError = 0;
+                    switch cAnalysisDomain % reconstruction method
+                        case 'rPIE' % scanning solution
+                            for j =1:scanSteps^2
+                                if correctPos==1 % apply position correction
+                                    if i==1 % inital parameters
+                                        Cpix = zeros(scanSteps^2,2);
+                                        rot_rad =0;
+                                        scale = 0;
+                                        nC = 10;
+                                        centralPix =max(Rpix(:,1))-min(Rpix(:,1));
+                                        rCpix0 = floor(centralPix/(scanSteps-1)); % random position searching radius
+                                        maxRot_rad0 = 1/180*pi; % maximum rotation
+                                        maxScale0 =0.01;% maximum scale
+                                    end
+                                    decreaseFactor = (iteration-i)/iteration;
+                                    [this.dObjectRecon,this.dProbeRecon,tempError,Cpix(j,:),rot_rad,scale] = ...
+                                        PIE.utils.pcPIE(this.dObjectRecon,this.dProbeRecon,sqrtInt(:,:,j),...
+                                        tempError,alpha,beta,gamma,propagator,H,Hm,N,KL,Rpix(j,:),Cpix(j,:),...
+                                        rot_rad,scale, nC,rCpix0,maxRot_rad0,maxScale0,decreaseFactor,centralPix,correctMethod);
+                                else % normal rPIE without position calibration
+                                    if ~isempty( this.ceSegments)
+                                        [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.sPIE(this.dObjectRecon,this.dProbeRecon,...
+                                            sqrtInt(:,:,j),Iseg(:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError,this.ceSegments);
+                                    else
+                                        [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
+                                            sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError, modeNumber);
+                                    end
+                                end
+                            end
+                            
+                        case 'RAAR' % batch scanning solution
+                            if i==1 % initial exitWaves
+                                exitWaves = zeros(N,N,scanSteps^2);
+                                for j =1:scanSteps^2
+                                    reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
+                                    exitWaves(:,:,j) = this.dProbeRecon.*reconBox;
+                                end
+                            end
+                            [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.RAAR(this.dObjectRecon,this.dProbeRecon,...
+                                sqrtInt,exitWaves,tempError,alpha,beta,delta,Rpix,N,propagator,H,Hm,scanSteps);
+                            
+                        case 'WDD' % Wigner distribution deconvolution
+                            q = PIE.utils.WDD(this.dObjectRecon,this.dProbeRecon,sqrtInt,N,Rm,Rn,scanSteps);
+                            break;
+                    end
+                    % error evaluation
+                    errors(i) = sum(tempError(:))/totalI;
+                    
+                    iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
+                    this.uitIteration.set(iterationStr);drawnow;
+                    
+                    if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<0e-7)||errors(i)<this.uieAccuracy.get()))
+                        this.dError = errors;
+                        % Make phase tab active:
+                        this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8RECONSTRUCTION, []);
+                        break;
+                    elseif strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
+                        % Plot wavefronts on phase tab
+                        this.replot(this.U8RECONSTRUCTION, []);
+                    end
+                end
+            else
+                % iterations for reconstruction
                 switch cAnalysisDomain % reconstruction method
                     case 'rPIE' % scanning solution
-                        for j =1:scanSteps^2
-                            if correctPos==1 % apply position correction
-                                if i==1 % inital parameters
-                                    Cpix = zeros(scanSteps^2,2);
-                                    rot_rad =0;
-                                    scale = 0;
-                                    nC = 10;
-                                    centralPix =max(Rpix(:,1))-min(Rpix(:,1));
-                                    rCpix0 = floor(centralPix/(scanSteps-1)); % random position searching radius
-                                    maxRot_rad0 = 1/180*pi; % maximum rotation
-                                    maxScale0 =0.01;% maximum scale
-                                end
-                                decreaseFactor = (iteration-i)/iteration;
-                                [this.dObjectRecon,this.dProbeRecon,tempError,Cpix(j,:),rot_rad,scale] = ...
-                                    PIE.utils.pcPIE(this.dObjectRecon,this.dProbeRecon,sqrtInt(:,:,j),...
-                                    tempError,alpha,beta,gamma,propagator,H,Hm,N,KL,Rpix(j,:),Cpix(j,:),...
-                                    rot_rad,scale, nC,rCpix0,maxRot_rad0,maxScale0,decreaseFactor,centralPix,correctMethod);
-                            else % normal rPIE without position calibration
-                                if ~isempty( this.ceSegments)
-                                    [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.sPIE(this.dObjectRecon,this.dProbeRecon,...
-                                        sqrtInt(:,:,j),Iseg(:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError,this.ceSegments);
-                                else
-                                    [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
-                                        sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError, modeNumber);
-                                end
+                        % set gpu array
+                        gpuObject = gpuArray(this.dObjectRecon);
+                        gpuProbe = gpuArray(this.dProbeRecon);
+                        gpuSqrtInt = gpuArray(sqrtInt);
+                        for i =1:iteration
+                            tempError = 0;
+                            for j =1: scanSteps^2
+                                reconBox = gpuObject(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
+                                exitWave = reconBox.*gpuProbe;
+                                detectorWave = PIE.utils.postPropagate (exitWave,propagator,H,1);
+                                correctedWave = gpuSqrtInt(:,:,j).*detectorWave./(abs(detectorWave)+eps);
+                                exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,1);
+                                tempProbe = gpuProbe;
+                                denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
+                                newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
+                                denomP = gamma*max(abs(reconBox(:)).^2) + (1-gamma).*abs(reconBox).^2;
+                                gpuProbe = gpuProbe + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
+                                gpuObject(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]) = newReconBox;
+                                tempError = tempError + abs(gpuSqrtInt(:,:,j)-abs(detectorWave)).^2;
+                            end
+                            % error evaluation
+                            errors(i) =gather( sum(tempError(:)))/totalI;
+                            
+                            iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
+                            this.uitIteration.set(iterationStr);drawnow;
+                            if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<0e-7)||errors(i)<this.uieAccuracy.get()))
+                                this.dError = errors;
+                                % gather data from gpu to memory
+                                this.dObjectRecon = gather(gpuObject);
+                                this.dProbe = gather(gpuProbe);
+                                % Make phase tab active:
+                                this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
+                                % Plot wavefronts on phase tab
+                                this.replot(this.U8RECONSTRUCTION, []);
+                                break;
+                            elseif strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
+                                % gather data from gpu to memory
+                                this.dObjectRecon = gather(gpuObject);
+                                this.dProbe = gather(gpuProbe);
+                                % Plot wavefronts on phase tab
+                                this.replot(this.U8RECONSTRUCTION, []);
                             end
                         end
-                        
-                    case 'RAAR' % batch scanning solution
-                        if i==1 % initial exitWaves
-                            exitWaves = zeros(N,N,scanSteps^2);
-                            for j =1:scanSteps^2
-                                reconBox = this.dObjectRecon(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
-                                exitWaves(:,:,j) = this.dProbeRecon.*reconBox;
-                            end
-                        end
-                        [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.RAAR(this.dObjectRecon,this.dProbeRecon,...
-                            sqrtInt,exitWaves,tempError,alpha,beta,delta,Rpix,N,propagator,H,Hm,scanSteps);
-                        
-                    case 'WDD' % Wigner distribution deconvolution
-                        q = PIE.utils.WDD(this.dObjectRecon,this.dProbeRecon,sqrtInt,N,Rm,Rn,scanSteps);
-                        break;
-                end
-                % error evaluation
-                errors(i) = sum(tempError(:))/totalI;
-                
-                iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
-                this.uitIteration.set(iterationStr);drawnow;
-                
-                if stopSign==1||(i>1&&((abs(errors(i)-errors(i-1))<0e-7)||errors(i)<this.uieAccuracy.get()))
-                    this.dError = errors;
-                    % Make phase tab active:
-                    this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
-                    % Plot wavefronts on phase tab
-                    this.replot(this.U8RECONSTRUCTION, []);
-                    break;
-                elseif strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Reconstruction')
-                    % Plot wavefronts on phase tab
-                    this.replot(this.U8RECONSTRUCTION, []);
                 end
             end
             
@@ -2462,7 +2546,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             iteration = length(this.dError);
                             h = plot(this.haAnalysis,1:iteration,log10(this.dError));
-                            this.haAnalysis.Title.String = selectedObject; 
+                            this.haAnalysis.Title.String = selectedObject;
                             set(h,'lineWidth',2);
                             this.haAnalysis.FontSize = 12;
                             this.haAnalysis.XLabel.String = 'Iteration times';this.haAnalysis.YLabel.String = 'Residual errors (log10)';
@@ -2794,6 +2878,7 @@ classdef PIE_Analyze < mic.Base
             this.uibLoadProbe.build    (uitProbe, 10, 90+Offsetp, 100, 20);
             this.uibLoadObject.build    (uitProbe, 250, 90+Offsetp, 100, 20);
             this.uibGenProbeObject.build    (uitProbe, 430, 130+Offsetp, 100, 20);
+            this.uibCopyProbe.build    (uitProbe, 120, 90+Offsetp, 100, 20);
             this.uicbGuess.build (uitProbe, 430, 10+Offsetp, 100, 20);
             this.uitOverlap.build (uitProbe, 430, 90+Offsetp, 120, 20);
             this.uitSampling.build (uitProbe, 430, 50+Offsetp, 120, 20);
@@ -2850,11 +2935,12 @@ classdef PIE_Analyze < mic.Base
             uitWDD = this.uitgAnalysisDomain.getTabByName('WDD');
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
             this.uibStop.build  (this.hpPhase, 415, 130, 160, 20);
-            this.uitIteration.build           (this.hpPhase, 300, 20, 250, 20);
+            this.uitIteration.build           (this.hpPhase, 200, 20, 250, 20);
             this.uieAlpha.build           (this.hpPhase, 420, 90, 70, 20);
             this.uieBeta.build           (this.hpPhase, 500, 90, 70, 20);
             this.uieMaxIteration.build           (this.hpPhase, 420, 50, 70, 20);
             this.uieAccuracy.build           (this.hpPhase, 500, 50, 70, 20);
+            this.uicbGPU.build           (this.hpPhase, 420, 16, 120, 20);
             
             % Control: Reconstruction: rPIE
             this.uieGamma.build           (uitRPIE, 20, 10, 70, 20);

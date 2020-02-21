@@ -13,7 +13,7 @@ if modeNumber<=1
     dObjectRecon(Rpix(1)+[1:N],Rpix(2)+[1:N]) = newReconBox;
     tempError = tempError + abs(sqrtInt-abs(detectorWave)).^2;
 else
-    reconBox = dObjectRecon(Rpix(1)+[1:N],Rpix(2)+[1:N]);
+    reconBox = dObjectRecon(Rpix(1)+[1:N],Rpix(2)+[1:N],:);
     exitWave = reconBox.*dProbeRecon;
     [exitWaveNew,detectorWave] = PIE.utils.UpdateMultimodeExitWave(exitWave,sqrtInt,modeNumber,...
         propagator,H,Hm,1);

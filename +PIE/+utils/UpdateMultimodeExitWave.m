@@ -6,7 +6,7 @@ if nargin <8
     for m=1:modeNumber
         detectorWave(:,:,m) = PIE.utils.postPropagate (exitWave(:,:,m),propagator,H,preShift);
     end
-    correctedWave = sqrtInt.*detectorWave./(sqrt(sum(abs(detectorWave).^2,3))+eps);
+    correctedWave = sqrtInt./(sqrt(sum(abs(detectorWave).^2,3))+eps).*detectorWave;
     for m=1:modeNumber
         exitWaveNew(:,:,m) = PIE.utils.postPropagate (correctedWave(:,:,m),propagator,Hm,preShift);
     end
