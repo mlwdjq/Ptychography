@@ -1225,7 +1225,13 @@ classdef PIE_Analyze < mic.Base
             end
             overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
             this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
-            samplingFactor = 2*Rprobe_um/dR;
+            if ~isempty(this.ceSegments)
+                NSeg = length(this.ceSegments);
+                segFactor = sqrt(NSeg)/N;
+            else
+                segFactor = 1;
+            end
+            samplingFactor = 2*Rprobe_um/dR*segFactor;
             this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
             %% initial object
             K = round(scanRange_um/do_um)+N;
@@ -1538,9 +1544,9 @@ classdef PIE_Analyze < mic.Base
                     for i =1:scanSteps
                         for j =1:scanSteps
                             Iseg(k,scanSteps*(i-1)+j) = mean ( this.ceInt{i,j}(this.ceSegments{k}==1));
-                            totalI = totalI+mean(Is(this.ceSegments{k}==1));
                         end
                     end
+                    totalI = totalI+mean(Is(this.ceSegments{k}==1));
                 end
             else
                 totalI =totalI+sum(Is(:));
@@ -2280,7 +2286,19 @@ classdef PIE_Analyze < mic.Base
                     % normalize intensity
                     %                     if strcmp(ceMeta{1},'sim')~=1
                     if k==1 && t==1
-                        normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                        if ~isempty(this.ceSegments) % normalize intensity for segments detector
+                            segInt=zeros(length(this.ceSegments),1);
+                            detectorUsage = 0;
+                            for ns=1:length(this.ceSegments)
+                                seg = logical(this.ceSegments{ns});
+                                segInt(ns) =mean(this.ceIntR{1,1}(seg));
+                                detectorUsage = detectorUsage+sum(seg(:));
+                            end
+                            detectorUsage = detectorUsage/length(this.ceIntR{1,1})^2;
+                            normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(segInt)*detectorUsage;
+                        else
+                            normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                        end
                     end
                     this.ceIntR{k,t} = this.ceIntR{k,t}*normalizeFactor;
                     %                     end
@@ -2494,13 +2512,13 @@ classdef PIE_Analyze < mic.Base
                             yo_mm = [1:K]*do_um/1000; % object coordinates
                         end
                         imagesc(this.haGuessProbeAmp, xp_mm,xp_mm,abs(this.dProbeGuess(:,:,u8ModeId)));colorbar(this.haGuessProbeAmp);axis(this.haGuessProbeAmp,'xy');
-                        this.haGuessProbeAmp.Title.String = 'Probe amplitude';this.haGuessProbeAmp.XLabel.String = 'mm';this.haGuessProbeAmp.YLabel.String = 'mm';
+                        this.haGuessProbeAmp.Title.String = 'Guessed probe amplitude';this.haGuessProbeAmp.XLabel.String = 'mm';this.haGuessProbeAmp.YLabel.String = 'mm';
                         imagesc(this.haGuessProbePha, xp_mm,xp_mm,atan2(imag(this.dProbeGuess(:,:,u8ModeId)),real(this.dProbeGuess(:,:,u8ModeId))));colorbar(this.haGuessProbePha);axis(this.haGuessProbePha,'xy');
-                        this.haGuessProbePha.Title.String = 'Probe phase';this.haGuessProbePha.XLabel.String = 'mm';this.haGuessProbePha.YLabel.String = 'mm';
+                        this.haGuessProbePha.Title.String = 'Guessed probe phase';this.haGuessProbePha.XLabel.String = 'mm';this.haGuessProbePha.YLabel.String = 'mm';
                         imagesc(this.haGuessObjectAmp, xo_mm,yo_mm,abs(object));colorbar(this.haGuessObjectAmp);axis(this.haGuessObjectAmp,'xy');
-                        this.haGuessObjectAmp.Title.String = 'Object amplitude';this.haGuessObjectAmp.XLabel.String = 'mm';this.haGuessObjectAmp.YLabel.String = 'mm';
+                        this.haGuessObjectAmp.Title.String = 'Guessed object amplitude';this.haGuessObjectAmp.XLabel.String = 'mm';this.haGuessObjectAmp.YLabel.String = 'mm';
                         imagesc(this.haGuessObjectPha, xo_mm,yo_mm,atan2(imag(object),real(object)));colorbar(this.haGuessObjectPha);axis(this.haGuessObjectPha,'xy');
-                        this.haGuessObjectPha.Title.String = 'Object phase';this.haGuessObjectPha.XLabel.String = 'mm';this.haGuessObjectPha.YLabel.String = 'mm';
+                        this.haGuessObjectPha.Title.String = 'Guessed object phase';this.haGuessObjectPha.XLabel.String = 'mm';this.haGuessObjectPha.YLabel.String = 'mm';
                     case this.U8RECONSTRUCTION
                         % intermedium object and probe
                         propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
@@ -2528,13 +2546,13 @@ classdef PIE_Analyze < mic.Base
                             yo_mm = [1:K]*do_um/1000; % object coordinates
                         end
                         imagesc(this.haReconProbeAmp, xp_mm,xp_mm,abs(this.dProbeRecon(:,:,u8ModeId)));colorbar(this.haReconProbeAmp);axis(this.haReconProbeAmp,'xy');
-                        this.haReconProbeAmp.Title.String = 'Probe amplitude';this.haReconProbeAmp.XLabel.String = 'mm';this.haReconProbeAmp.YLabel.String = 'mm';
+                        this.haReconProbeAmp.Title.String = 'Reconstructed probe amplitude';this.haReconProbeAmp.XLabel.String = 'mm';this.haReconProbeAmp.YLabel.String = 'mm';
                         imagesc(this.haReconProbePha, xp_mm,xp_mm,atan2(imag(this.dProbeRecon(:,:,u8ModeId)),real(this.dProbeRecon(:,:,u8ModeId))));colorbar(this.haReconProbePha);axis(this.haReconProbePha,'xy');
-                        this.haReconProbePha.Title.String = 'Probe phase';this.haReconProbePha.XLabel.String = 'mm';this.haReconProbePha.YLabel.String = 'mm';
+                        this.haReconProbePha.Title.String = 'Reconstructed probe phase';this.haReconProbePha.XLabel.String = 'mm';this.haReconProbePha.YLabel.String = 'mm';
                         imagesc(this.haReconObjectAmp, xo_mm,yo_mm,abs(object));colorbar(this.haReconObjectAmp);axis(this.haReconObjectAmp,'xy');
-                        this.haReconObjectAmp.Title.String = 'Object amplitude';this.haReconObjectAmp.XLabel.String = 'mm';this.haReconObjectAmp.YLabel.String = 'mm';
+                        this.haReconObjectAmp.Title.String = 'Reconstructed object amplitude';this.haReconObjectAmp.XLabel.String = 'mm';this.haReconObjectAmp.YLabel.String = 'mm';
                         imagesc(this.haReconObjectPha, xo_mm,yo_mm,atan2(imag(object),real(object)));colorbar(this.haReconObjectPha);axis(this.haReconObjectPha,'xy');
-                        this.haReconObjectPha.Title.String = 'Object phase';this.haReconObjectPha.XLabel.String = 'mm';this.haReconObjectPha.YLabel.String = 'mm';
+                        this.haReconObjectPha.Title.String = 'Reconstructed object phase';this.haReconObjectPha.XLabel.String = 'mm';this.haReconObjectPha.YLabel.String = 'mm';
                         drawnow;
                         
                     case this.U8ANALYSIS
@@ -2941,7 +2959,7 @@ classdef PIE_Analyze < mic.Base
             uitWDD = this.uitgAnalysisDomain.getTabByName('WDD');
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
             this.uibStop.build  (this.hpPhase, 415, 130, 160, 20);
-            this.uitIteration.build           (this.hpPhase, 190, 20, 250, 20);
+            this.uitIteration.build           (this.hpPhase, 180, 20, 250, 20);
             this.uieAlpha.build           (this.hpPhase, 420, 90, 70, 20);
             this.uieBeta.build           (this.hpPhase, 500, 90, 70, 20);
             this.uieMaxIteration.build           (this.hpPhase, 420, 50, 70, 20);

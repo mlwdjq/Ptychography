@@ -17,7 +17,7 @@ if ~isempty(segs)
     out=zeros(1,length(segs));
     for k=1:length(segs)
         seg = logical(segs{k});
-        out(k) = sum(sum(measurements(seg)));
+        out(k) = sum(measurements(seg));
         img = img + segs{k}*out(k);
     end
     measurements=img;
