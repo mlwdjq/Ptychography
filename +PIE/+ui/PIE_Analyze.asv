@@ -1970,8 +1970,6 @@ classdef PIE_Analyze < mic.Base
             % Generate diffraction patterns:
             scanRange_um = this.uieScanRange.get()*1000;
             N           = this.uieRes.get();
-            dMaxPhoton  = this.uieNp.get();
-            s2s         = this.uieShotToShot.get();
             modeNumber = this.uieModeNumber.get();
             lambda_um   = this.uieLambda.get()/1000;
             detSize_um     = this.uieDetSize.get()*1000;
@@ -2008,11 +2006,11 @@ classdef PIE_Analyze < mic.Base
                 for m = 1:length(dXPosShifts)
                     for k = 1:length(dYPosShifts)
                         %
-                        sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
+                        Wint = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
                             propagator,[dXPosShifts(m),dYPosShifts(k)],H,1);
                         % add systematic error
-                        Int = sqrtInt.^2;
-                        simInts{k, m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
+                        
+                        simInts{k, m} = Wint.^2;
                         this.uipbExposureProgress.set(k/length(dXPosShifts)/length(dYPosShifts)+(m-1)/length(dXPosShifts));
                         drawnow
                     end
@@ -2028,12 +2026,9 @@ classdef PIE_Analyze < mic.Base
             else % Simulate a singe image:
                 tic
                 %
-                sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,...
+                Wint = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,...
                     this.ceSegments,modeNumber,N,propagator,[round(scanRange_um/do_um/2),round(scanRange_um/do_um/2)],H,1);
-                % add systematic error
-                Int = sqrtInt.^2;
-                Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
-                this.handleLoadData({Int}, {'sim'});
+                this.handleLoadData({Wint.^2}, {'sim'});
                 this.dAnalysisRegion(Wint==0)=0;
                 fprintf('Single image took %s\n', s2f(toc));
             end
@@ -2278,12 +2273,12 @@ classdef PIE_Analyze < mic.Base
                         this.ceIntMeta={};
                     end
                     % normalize intensity
-                    %                     if strcmp(ceMeta{1},'sim')~=1
-                    if k==1 && t==1
-                        normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                    if strcmp(ceMeta{1},'sim')~=1
+                        if k==1 && t==1
+                            normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                        end
+                        this.ceIntR{k,t} = this.ceIntR{k,t}*normalizeFactor;
                     end
-                    this.ceIntR{k,t} = this.ceIntR{k,t}*normalizeFactor;
-                    %                     end
                     
                     this.ceInt{k,t} = this.ceIntR{k,t};
                     
