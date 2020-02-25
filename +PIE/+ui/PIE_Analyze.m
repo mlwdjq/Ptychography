@@ -263,6 +263,9 @@ classdef PIE_Analyze < mic.Base
         % Controls: Reconstruction: RAAR
         uieDelta
         
+        % Controls: Reconstruction: ML
+        uipLikelihoodType
+        uieRegularization
         
         % Controls:Analysis
         uipSelectRegion
@@ -465,7 +468,7 @@ classdef PIE_Analyze < mic.Base
             
             %% Controls: Reconstruction
             this.uitIteration               = mic.ui.common.Text('cVal','');
-            this.uitgAnalysisDomain = mic.ui.common.Tabgroup('ceTabNames', {'rPIE', 'RAAR', 'WDD'});
+            this.uitgAnalysisDomain = mic.ui.common.Tabgroup('ceTabNames', {'rPIE', 'RAAR', 'WDD','ML'});
             this.uipUnwrapEngine        = mic.ui.common.Popup('cLabel', 'Unwrapping algorithm', 'ceOptions', {'Sorting reliability unwrap'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibComputePhase        = mic.ui.common.Button('cText', 'Reconstruction',  'fhDirectCallback', @(src, evt)this.cb(src));
@@ -499,6 +502,11 @@ classdef PIE_Analyze < mic.Base
             this.uieDelta                = mic.ui.common.Edit('cLabel', 'Delta', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieDelta.set(0.1);
             
+            % Controls: Reconstruction: ML
+            this.uipLikelihoodType     = mic.ui.common.Popup('cLabel', 'Likelihood Type', 'ceOptions', {'Poisson','amplitude'}, ...
+                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uieRegularization                = mic.ui.common.Edit('cLabel', 'Gamma', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieRegularization.set(1);
             
             %% Controls:Analysis
             this.uipSelectObject      = mic.ui.common.Popup('cLabel', 'Select analysis object', 'ceOptions',...
@@ -1282,6 +1290,9 @@ classdef PIE_Analyze < mic.Base
             %% initial object
             K = round(scanRange_um/do_um)+N;
             L = round(scanRange_um/do_um)+N; % size of object [K,L]
+            if round(scanRange_um/do_um)<scanSteps
+                this.uitSampling.set(['Unenough sampling',num2str(round(scanRange_um/do_um))]); % check sampling
+            end
             if K>2000
                 fprintf('object sampling: %d, please adjust scanning range\n',K);
                 return;
@@ -1661,6 +1672,28 @@ classdef PIE_Analyze < mic.Base
                         case 'WDD' % Wigner distribution deconvolution
                             q = PIE.utils.WDD(this.dObjectRecon,this.dProbeRecon,sqrtInt,N,Rm,Rn,scanSteps);
                             break;
+                            
+                        case 'ML' % maximum-likelihood method
+                            likelihoodType = this.uipLikelihoodType.getOptions{this.uipLikelihoodType.getSelectedIndex()};
+                            regularization = this.uieRegularization.get(); % regularization factor for ML
+                            aj = 1/2/N^2*ones(scanSteps^2,1);
+                            for j =1:scanSteps^2
+                                if ~isempty( this.ceSegments)
+                                    [this.dObjectRecon,this.dProbeRecon,tempError,aj(j),alpha(j),beta(j)] = PIE.utils.sML(this.dObjectRecon,this.dProbeRecon,...
+                                        sqrtInt(:,:,j),Iseg(:,j),Rpix(j,:),N,propagator,H,Hm, gamma, tempError, likelihoodType,regularization, aj(j),this.ceSegments);
+                                else
+                                    [this.dObjectRecon,this.dProbeRecon,tempError,aj(j),alpha(j),beta(j)] = PIE.utils.ML(this.dObjectRecon,this.dProbeRecon,...
+                                        sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm, gamma, tempError, likelihoodType,regularization, aj(j));
+                                end
+                                drawnow;
+                                if strcmp(this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()},...
+                                        'Scanning position')&&strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Analysis')
+                                    % Plot wavefronts on phase tab
+                                    this.replot(this.U8ANALYSIS, j);
+                                end
+                            end
+                            this.uieAlpha.set(mean(abs(alpha)));
+                            this.uieBeta.set(mean(abs(beta)));
                     end
                     % error evaluation
                     errors(i) = sum(tempError(:))/totalI;
@@ -1668,7 +1701,7 @@ classdef PIE_Analyze < mic.Base
                     iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
                     this.uitIteration.set(iterationStr);drawnow;
                     
-                    if stopSign==1||(i>1&&errors(i)<this.uieAccuracy.get())
+                    if stopSign==1||(i>1&&errors(i)<this.uieAccuracy.get())||i==iteration
                         this.dError = errors;
                         % Make phase tab active:
                         this.uitgAxesDisplay.selectTabByIndex(this.U8RECONSTRUCTION);
@@ -1861,7 +1894,7 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = do_um/1000;
                     end
                 case 'Probe amplitude difference'
-                    this.dSelectedObject = abs(probeRecon)./mean(abs(probeRecon(this.dAnalysisMask==1))) - abs(probeOri)./mean(abs(probeOri(this.dAnalysisMask==1)));
+                    this.dSelectedObject = abs(probeRecon)./mean(abs(probeRecon(pinhole(2*Rpix,N,N)==1))) - abs(probeOri)./mean(abs(probeOri(pinhole(2*Rpix,N,N)==1)));
                     if FP
                         this.dUnit_mm = dc_um/1000/Magnification ;
                     else
@@ -3019,6 +3052,7 @@ classdef PIE_Analyze < mic.Base
             uitRPIE = this.uitgAnalysisDomain.getTabByName('rPIE');
             uitRAAR = this.uitgAnalysisDomain.getTabByName('RAAR');
             uitWDD = this.uitgAnalysisDomain.getTabByName('WDD');
+            uitML = this.uitgAnalysisDomain.getTabByName('ML');
             this.uibComputePhase.build  (this.hpPhase, 415, 160, 160, 20);
             this.uibStop.build  (this.hpPhase, 415, 130, 160, 20);
             this.uitIteration.build           (this.hpPhase, 180, 20, 250, 20);
@@ -3039,6 +3073,10 @@ classdef PIE_Analyze < mic.Base
             
             % Control: Reconstruction: RAAR
             this.uieDelta.build           (uitRAAR, 20, 20, 100, 20);
+            
+            % Control: Reconstruction: ML
+            this.uipLikelihoodType.build    (uitML, 200, 10, 100, 20);
+            this.uieRegularization.build           (uitML, 20, 10, 70, 20);
             
             %% Controls: Analysis
             this.hpAnalysis = uipanel(...
