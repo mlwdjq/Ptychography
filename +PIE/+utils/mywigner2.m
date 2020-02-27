@@ -1,4 +1,4 @@
-function W = mywigner(Ex)
+function W = mywigner2(Exy,dire)
 %MYWIGNER: Calculates the Wigner distribution from a column vector
 %
 %	W  = mywigner(Ex)
@@ -24,13 +24,16 @@ function W = mywigner(Ex)
 %		Allow an arbitrary output resolution
 %		Allow an input vector for x (and possibly y).
 
-if (size(Ex, 2)-1)
-    error('E(x) must be a column vector');
-end
+N = length(Exy);
+W = zeros(N,N,N,N);%   Get length of vector
 
-N = length(Ex);														%   Get length of vector
-x = ifftshift(((0:N-1)'-N/2)*2*pi/(N));							%   Generate linear vector
-X = (0:N-1)-N/2;
-EX1 = ifft( (fft(Ex)*ones(1,N)).*exp( 1i*x*X/2 ));					%   +ve shift
-EX2 = ifft( (fft(Ex)*ones(1,N)).*exp( -1i*x*X/2 ));					%   -ve shift
-W = real(fftshift(fft(fftshift(EX1.*conj(EX2), 2), [], 2), 2));		%   Wigner function
+[x,y] = meshgrid(ifftshift(((0:N-1)-N/2)*2*pi/(N)));							%   Generate linear vector
+[X,Y] = meshgrid((0:N-1)-N/2);
+for m =1:N
+    for n = 1:N
+        EXY1 = fft2( ifft2(Exy).*exp( -dire*1i*x*X(n,m)/2*0 ).*exp( -dire*1i*y*Y(n,m)/2*0 ));			%   f(u)
+        EXY2 = fft2( ifft2(Exy).*exp( dire*1i*x*X(n,m)/2*2 ).*exp( dire*1i*y*Y(n,m)/2*2 ));			%   f(u+U)
+        W(:,:,m,n) = ifftshift(ifft2(ifftshift(EXY2.*conj(EXY1))));		%   Wigner function
+%          figure(2),imagesc(abs(EXY1));drawnow;
+    end
+end

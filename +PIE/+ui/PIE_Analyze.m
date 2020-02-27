@@ -405,9 +405,10 @@ classdef PIE_Analyze < mic.Base
             
             
             % Controls:Data:Probe and object
-            this.uipProbeType     = mic.ui.common.Popup('cLabel', 'Probe type', 'ceOptions', {'Defocus wave','Plane wave'}, ...
+            this.uipProbeType     = mic.ui.common.Popup('cLabel', 'Probe type', 'ceOptions', {'Defocus wave','Plane wave','From reconstruction'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vacuum','Cameraman','Low resolution','Load object'}, ...
+            this.uipObjectType     = mic.ui.common.Popup('cLabel', 'Object type', 'ceOptions', {'Vacuum','Cameraman','Low resolution',...
+                'Load object','From reconstruction'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uipPropagator     = mic.ui.common.Popup('cLabel', 'Propagator', 'ceOptions', {'angular spectrum','fourier','fresnel'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
@@ -514,7 +515,8 @@ classdef PIE_Analyze < mic.Base
                 'Object spectrum amplitude','Object spectrum phase','Probe spectrum amplitude','Probe spectrum phase',...
                 'Object amplitude difference','Object phase difference','Probe amplitude difference','Probe phase difference'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
-            this.uipSelectRegion      = mic.ui.common.Popup('cLabel', 'Select analysis region', 'ceOptions', {'Entire region','Compute from probe'}, ...
+            this.uipSelectRegion      = mic.ui.common.Popup('cLabel', 'Select analysis region', 'ceOptions', ...
+                {'Entire region','Compute from probe radius','Compute from probe diameter'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibAnalyze        = mic.ui.common.Button('cText', 'Analyze', 'fhDirectCallback', @(src, evt)this.cb(src));
             
@@ -581,14 +583,14 @@ classdef PIE_Analyze < mic.Base
                     dL = this.uieScanRange.get();
                     dPosString = sprintf('0:%0.6f/%d:%0.6f', dL, dN-1, dL);
                     dPos = eval(dPosString);
-%                     k = 1;
-%                     for i =1:dN
-%                         for j =1:dN
-%                             dPos2(k,:)=[dPos(i),dPos(j)];
-%                             k=k+1;
-%                         end
-%                     end
-%                     this.dPos_mm = dPos2;
+                    %                     k = 1;
+                    %                     for i =1:dN
+                    %                         for j =1:dN
+                    %                             dPos2(k,:)=[dPos(i),dPos(j)];
+                    %                             k=k+1;
+                    %                         end
+                    %                     end
+                    %                     this.dPos_mm = dPos2;
                     [dm,dn] = meshgrid(dPos,dPos);
                     this.dPos_mm  = [dm(:),dn(:)];
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
@@ -1237,6 +1239,8 @@ classdef PIE_Analyze < mic.Base
                         CO = 1-pinhole(round(2*Rprobe_um/dc_um*CenterObstruction),N,N);
                         probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/do_um),N,N).*CO.*exp(1i*probe_pha),propagator,...
                             do_um,lambda_um,abs(df_um));
+                    case 'From reconstruction'
+                        probe = this.dProbeRecon;
                 end
             else % define probe in pupil space for fourier ptychography
                 samplingFactor_obj = lambda_um.*z_um/(N*dc_um*do_um);
@@ -1274,24 +1278,27 @@ classdef PIE_Analyze < mic.Base
                     this.dProbe(:,:,u8ModeId) = single(probe);
                 end
             end
-            if samplingFactor_obj>1
-                fprintf('Please adjust configurations for propagation sampling\n');
+            try
+                if samplingFactor_obj>1
+                    fprintf('Please adjust configurations for propagation sampling\n');
+                end
+                overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
+                this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
+                if ~isempty(this.ceSegments)
+                    NSeg = length(this.ceSegments);
+                    segFactor = sqrt(NSeg)/N;
+                else
+                    segFactor = 1;
+                end
+                samplingFactor = 2*Rprobe_um/dR*segFactor;
+                this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
+            catch
             end
-            overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
-            this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
-            if ~isempty(this.ceSegments)
-                NSeg = length(this.ceSegments);
-                segFactor = sqrt(NSeg)/N;
-            else
-                segFactor = 1;
-            end
-            samplingFactor = 2*Rprobe_um/dR*segFactor;
-            this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
             %% initial object
             K = round(scanRange_um/do_um)+N;
             L = round(scanRange_um/do_um)+N; % size of object [K,L]
             if round(scanRange_um/do_um)<scanSteps
-                this.uitSampling.set(['Unenough sampling',num2str(round(scanRange_um/do_um))]); % check sampling
+                this.uitSampling.set(['Over scanning ',num2str(round(scanRange_um/do_um))]); % check sampling
             end
             if K>2000
                 fprintf('object sampling: %d, please adjust scanning range\n',K);
@@ -1324,6 +1331,8 @@ classdef PIE_Analyze < mic.Base
                     else
                         object = this.dObject(:,:,u8ModeId);
                     end
+                case 'From reconstruction'
+                    object = this.dObjectRecon(:,:,u8ModeId);
             end
             if FP
                 object =  PIE.utils.Propagate (object,propagator,do_um,lambda_um,-1);
@@ -1568,9 +1577,9 @@ classdef PIE_Analyze < mic.Base
             Hm = PIE.utils.prePropagate (this.dProbeGuess,propagator,do_um,lambda_um,-z_um,1);
             
             % generate scanning position
-            dPosShifts = eval(this.uiePhaseStepsSim.get());
-            Rm = round(dPosShifts(:,1)*1000/do_um);
-            Rn = round(dPosShifts(:,2)*1000/do_um);
+%             dPosShifts = eval(this.uiePhaseStepsSim.get());
+%             Rm = round(dPosShifts(:,1)*1000/do_um);
+%             Rn = round(dPosShifts(:,2)*1000/do_um);
             Rpix=round(this.dPos_mm*1000/do_um);
             if isempty(this.dProbeGuess)
                 this.dProbeGuess = pinhole(round(N/2),N,N);
@@ -1670,7 +1679,7 @@ classdef PIE_Analyze < mic.Base
                                 sqrtInt,exitWaves,tempError,alpha,beta,delta,Rpix,N,propagator,H,Hm,scanSteps);
                             
                         case 'WDD' % Wigner distribution deconvolution
-                            q = PIE.utils.WDD(this.dObjectRecon,this.dProbeRecon,sqrtInt,N,Rm,Rn,scanSteps);
+                            [this.dObjectRecon,this.dProbeRecon] = PIE.utils.WDD(this.dObject,this.dProbe,sqrtInt,N,Rpix,scanSteps);
                             break;
                             
                         case 'ML' % maximum-likelihood method
@@ -1915,7 +1924,19 @@ classdef PIE_Analyze < mic.Base
             switch selectedRegion
                 case 'Entire region'
                     this.dAnalysisMask = ones(K,L);
-                case 'Compute from probe'
+                case 'Compute from probe radius'
+                    this.dAnalysisMask = zeros(K,L);
+                    probeRegion = pinhole(Rpix,N,N);
+                    if K>N
+                        for i = 1:length(this.dPos_mm)
+                            this.dAnalysisMask(Rmn(i,1)+[1:N],Rmn(i,2)+[1:N]) = ...
+                                probeRegion + this.dAnalysisMask(Rmn(i,1)+[1:N],Rmn(i,2)+[1:N]);
+                        end
+                        this.dAnalysisMask(this.dAnalysisMask~=0)=1;
+                    else
+                        this.dAnalysisMask = probeRegion;
+                    end
+                case 'Compute from probe diameter'
                     this.dAnalysisMask = zeros(K,L);
                     probeRegion = pinhole(2*Rpix,N,N);
                     if K>N
@@ -2086,7 +2107,7 @@ classdef PIE_Analyze < mic.Base
                 this.uipbExposureProgress.set(0);
                 
                 
-                 dPosShifts = round(this.dPos_mm*1000/do_um);
+                dPosShifts = round(this.dPos_mm*1000/do_um);
                 nSteps = sqrt(length(dPosShifts));
                 dmPosShifts = reshape(dPosShifts(:,1),nSteps,nSteps);
                 dnPosShifts = reshape(dPosShifts(:,2),nSteps,nSteps);
@@ -2639,10 +2660,10 @@ classdef PIE_Analyze < mic.Base
                             h = plot(this.haAnalysis,this.dPos_mm(:,2),this.dPos_mm(:,1),'.');
                             axis(this.haAnalysis,'xy','equal','tight');
                             set(h,'MarkerSize',20);
-                            this.haAnalysis.Title.String = selectedObject; 
+                            this.haAnalysis.Title.String = selectedObject;
                             this.haAnalysis.FontSize = 12;
                             this.haAnalysis.XLabel.String = 'mm';this.haAnalysis.YLabel.String = 'mm';
-                            if ~isempty(dMetaFlags)       
+                            if ~isempty(dMetaFlags)
                                 hold( this.haAnalysis,'on');
                                 hs = plot(this.haAnalysis,this.dPos_mm(dMetaFlags,2),this.dPos_mm(dMetaFlags,1),'.');
                                 set(hs,'MarkerSize',40);

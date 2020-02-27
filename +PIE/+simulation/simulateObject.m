@@ -55,7 +55,33 @@ object_phase(N/2:end,N/2:end)=pi;
 object_phase(N/2:end,1:N/2)=pi/2*3;
 
 figure,mesh(object_phase)
+
+%% object for WDD
+n = 128; 
+I1 =single(imread('pears.png'));
+I1 = crop2(I1,n,n);
+I2 =single(imread('onion.png'));
+I2 = crop2(I2,n,n);
+[x,y] = meshgrid(linspace(-1,1,n));
+[x2,y2] = meshgrid(linspace(-1,1,64));
+I1 = interp2(x,y,I1,x2,y2);
+I2 = interp2(x,y,I2,x2,y2);
+
+mask = zeros(64);
+mask(17:48,17:48) =1;
+% I1 = I1.*mask;
+% I2 = I2.*mask;
+I2 = mat2gray(I2)*0.8+0.2;
+I1 =(mat2gray(I1)-0.5)*pi/2;
+I1 = I1.*mask;
+I2 = I2.*mask;
+I1 = [I1,I1,I1;I1,I1,I1;I1,I1,I1];
+I2 = [I2,I2,I2;I2,I2,I2;I2,I2,I2];
+object_phase = crop2(I1,128,128);
+object_amp = crop2(I2,128,128);
+figure, imagesc(object_phase)
+
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/MET5Grating.mat','object');
+save('../../data/object/WDD.mat','object');
