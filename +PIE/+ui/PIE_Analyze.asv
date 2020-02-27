@@ -271,7 +271,6 @@ classdef PIE_Analyze < mic.Base
         uipSelectRegion
         uipSelectObject
         uibAnalyze
-        uieSigma
         
     end
     
@@ -520,8 +519,6 @@ classdef PIE_Analyze < mic.Base
                 {'Entire region','Compute from probe radius','Compute from probe diameter'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibAnalyze        = mic.ui.common.Button('cText', 'Analyze', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieSigma = mic.ui.common.Edit('cLabel', 'Sigma filter', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieSigma.set(0);
             
             %% Add buttons to state flag lists
             this.ceUIBStateControlled = {};
@@ -1933,10 +1930,12 @@ classdef PIE_Analyze < mic.Base
                     Rminn = min(Rmn(:,2));
                     Rmaxm = max(Rmn(:,1));
                     Rmaxn = max(Rmn(:,2));
-                    probeRegion = pinhole(2*Rpix,N,N);
                     if K>N
-                        this.dAnalysisMask = zeros(K,L);
-                        this.dAnalysisMask(Rminm+N/2+1:Rmaxm+N/2,Rminn+N/2+1:Rmaxn+N/2) = 1;
+                        for i = 1:length(this.dPos_mm)
+                            this.dAnalysisMask(Rminm+N/2+1:,Rmn(i,2)+[1:N]) = ...
+                                probeRegion + this.dAnalysisMask(Rmn(i,1)+[1:N],Rmn(i,2)+[1:N]);
+                        end
+                        this.dAnalysisMask(this.dAnalysisMask~=0)=1;
                     else
                         this.dAnalysisMask = probeRegion;
                     end
@@ -1953,13 +1952,7 @@ classdef PIE_Analyze < mic.Base
                         this.dAnalysisMask = probeRegion;
                     end
             end
-            sigma = this.uieSigma.get();
-            if sigma >0 %% using sigma filter remove noise
-                selectedData = this.dSelectedObject(this.dAnalysisMask==1);
-                rms = std(selectedData);
-                selectedData(abs(selectedData-mean(selectedData))>sigma*rms)=0;
-                this.dSelectedObject(this.dAnalysisMask==1) = selectedData;
-            end
+            
             % Make phase tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8ANALYSIS);
             
@@ -3124,7 +3117,6 @@ classdef PIE_Analyze < mic.Base
             this.uipSelectObject.build     (this.hpAnalysis, 20, 20, 180, 20);
             this.uipSelectRegion.build       (this.hpAnalysis, 20, 70, 180, 20);
             this.uibAnalyze.build   (this.hpAnalysis, 415, 140, 160, 20);
-            this.uieSigma.build   (this.hpAnalysis, 220, 20, 80, 20);
             
             % Set hsa offset:
             this.hsaInterferogram.setAxesOffset([dTgPx + uitData.Position(1), dTgPy + uitData.Position(2)]);
