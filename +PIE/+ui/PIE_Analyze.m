@@ -657,8 +657,8 @@ classdef PIE_Analyze < mic.Base
                     
                     % Load patterns
                 case this.uibLoadSingleFromImg
-                    cDataDir = fullfile(this.cAppPath, '..', '..', '..', 'Data');
-                    [fn,pn]=uigetfile({'*.mat;*.SPE','LSI int bundle (*.mat) or WinView (*.SPE)'},'Loading',cDataDir);
+                    cDataDir = fullfile(this.cAppPath, '..', '..', 'data','Aerial images');
+                    [fn,pn]=uigetfile({'*.mat;*.SPE','PIE int bundle (*.mat) or WinView (*.SPE)'},'Loading',cDataDir);
                     fileformat=fn(end-2:end);
                     filename= strcat(pn,fn);
                     switch fileformat
@@ -668,11 +668,12 @@ classdef PIE_Analyze < mic.Base
                             
                         case 'mat'
                             load(filename);
-                            try
-                                this.handleLoadData({dImg}, {stLog});
-                            catch
-                                this.handleLoadData(ceInts, {});
-                            end
+%                             try
+                                this.dPos_mm = dPos_mm;
+                                N = sqrt(length(aerialImages));
+                                this.handleLoadData(reshape(aerialImages,N,N), {});
+%                             catch
+%                             end
                     end
                     
                 case this.uibLoadSingleFromLog
@@ -1597,23 +1598,19 @@ classdef PIE_Analyze < mic.Base
             this.dObjectRecon =this.dObjectGuess;
             sqrtInt  = single(zeros(N,N,scanSteps^2));
             Is = 0;
-            k=1;
-            for i =1:scanSteps
-                for j =1:scanSteps
-                    sqrtInt(:,:,k)=sqrt(this.ceInt{i,j});
-                    Is = Is + this.ceInt{i,j};
-                    k=k+1;
-                end
+            ceInts = this.ceInt(:);
+            for j =1:scanSteps^2
+                sqrtInt(:,:,j)=sqrt(ceInts{j});
+                Is = Is + ceInts{j};
             end
+
             totalI =0;
             Iseg = zeros(length(this.ceSegments),scanSteps^2);
             if ~isempty(this.ceSegments)
                 for k =1:length(this.ceSegments)
-                    for i =1:scanSteps
-                        for j =1:scanSteps
-                            Iseg(k,scanSteps*(i-1)+j) = mean ( this.ceInt{i,j}(this.ceSegments{k}==1));
+                        for j =1:scanSteps^2
+                            Iseg(k,j) = mean ( ceInts{j}(this.ceSegments{k}==1));
                         end
-                    end
                     totalI = totalI+mean(Is(this.ceSegments{k}==1));
                 end
             else
@@ -2110,31 +2107,23 @@ classdef PIE_Analyze < mic.Base
                 this.dObject = ones(KL);
             end
             
-            if lComputePSStack % True if simulating "stack"
-                %                 simInts = {};
-                u8NumPhaseSteps = this.uieScanSteps.get();
-                simInts = cell(u8NumPhaseSteps, 2);
+            if lComputePSStack % True if simulating "stack"        
                 this.uipbExposureProgress.set(0);
-                
-                
                 dPosShifts = round(this.dPos_mm*1000/do_um);
-                nSteps = sqrt(length(dPosShifts));
-                dmPosShifts = reshape(dPosShifts(:,1),nSteps,nSteps);
-                dnPosShifts = reshape(dPosShifts(:,2),nSteps,nSteps);
-                
+                nSteps = length(dPosShifts);
+                simInts = cell(nSteps, 1);
+
                 for m = 1:nSteps
-                    for k = 1:nSteps
-                        %
-                        sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
-                            propagator,[dmPosShifts(m,k),dnPosShifts(m,k)],H,1);
+                    sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
+                            propagator,[dPosShifts(m,1),dPosShifts(m,2)],H,1);
                         % add systematic error
                         Int = sqrtInt.^2;
-                        simInts{k,m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
-                        this.uipbExposureProgress.set(k/nSteps/nSteps+(m-1)/nSteps);
-                        drawnow
-                    end
+                        simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
+                        this.uipbExposureProgress.set(m/nSteps);
                 end
                 
+                simInts =reshape(simInts,sqrt(nSteps),sqrt(nSteps));
+
                 this.handleLoadData(simInts, {'sim'});
                 this.dAnalysisRegion(simInts{1,1}==0)=0;
                 this.uipbExposureProgress(1);

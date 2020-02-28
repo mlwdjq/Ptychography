@@ -55,31 +55,30 @@ PIE.utils.setParameters(para,saveConfig,setupFile);
 
 %% set illumination
 dPos = 0:scanRange_um/(scanSteps-1):scanRange_um;
+[dm,dn] = meshgrid(dPos,dPos);
+dPos_um  = [dm(:),dn(:)];
+dPos_mm = dPos_um/1000;
 [dm,dn] = meshgrid(dPos-scanRange_um/2,dPos-scanRange_um/2);
 theta= atan(sqrt(dm.^2+dn.^2)/Lo_um)/pi*180; % illumination angles
 phi = atan2(dm,dn)/pi*180; % illumination azimuthes
+dA = [theta(:),phi(:)];
 
-[sr,sc] = size(theta);
-E = zeros(N,N,sr,sc);
-aerialImages = E;
-for i=1: sr
-    for j =1:sc
-        setVariableValues( 'theta',theta(i,j));
-        setVariableValues( 'phi',phi(i,j));
+E = zeros(N,N,scanSteps^2);
+aerialImages = cell(scanSteps^2,1);
+for i=1: scanSteps^2
+        setVariableValues( 'theta',dA(i,1));
+        setVariableValues( 'phi',dA(i,2));
         %% run simulator using TEMPEST
-        E(:,:,i,j) = PIE.utils.runSimulator(polarDire);
+        E(:,:,i) = PIE.utils.runSimulator(polarDire);
         %% generate aerial images
-        aerialImages(:,:,i,j)=  PIE.utils.getAerialImages(E(:,:,i,j),Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
-    end
+        aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
 end
 
 %% save data
 if saveData==1
-    save(dataFile, 'para', 'E', 'theta', 'phi','aerialImages');
-    for i= 1:sr
-        for j =1:sc
-            imwrite(mat2gray(aerialImages(:,:,i,j)),[dataFile(1:end-1),'_',num2str(i),'_',num2str(j),'.bmp']);
-        end
+    save(dataFile, 'para', 'E', 'theta', 'phi','aerialImages','dPos_mm');
+    for i= 1:scanSteps^2
+       imwrite(mat2gray(aerialImages{i}),[dataFile(1:end-1),'_',num2str(i),'.bmp']);
     end
 end
 
