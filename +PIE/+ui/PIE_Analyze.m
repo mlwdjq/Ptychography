@@ -394,7 +394,7 @@ classdef PIE_Analyze < mic.Base
                 'dWidth', 455);
             
             this.uiez1.set(1);
-            this.uieNp.set(30000);
+            this.uieNp.set(0);
             this.uieRes.set(256);
             this.uieScanSteps.set(4);
             dN = this.uieScanSteps.get();
@@ -437,10 +437,10 @@ classdef PIE_Analyze < mic.Base
             this.uieLo.set(3);
             
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            dN = this.uieScanSteps.get();
+            dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
             this.uieMag.set(this.uiez2.get()/Lo_mm);
-            dA =atan((eval(this.uiePhaseStepsSim.get())-dN/2)/Lo_mm)/pi*180;
+            dA =atan((eval(this.uiePhaseStepsSim.get())-dL/2)/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
             % Controls:Data:Sim segments
@@ -598,7 +598,7 @@ classdef PIE_Analyze < mic.Base
                     this.dPos_mm  = [dm(:),dn(:)];
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
                     Lo_mm = this.uieLo.get();
-                    dA =atan((eval(this.uiePhaseStepsSim.get())-dN/2)/Lo_mm)/pi*180;
+                    dA =atan((eval(this.uiePhaseStepsSim.get())-dL/2)/Lo_mm)/pi*180;
                     this.uieScanAngles.set(mat2str(dA));
                     if strcmp(this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()},...
                             'Scanning position')&&strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Analysis')
@@ -866,7 +866,7 @@ classdef PIE_Analyze < mic.Base
                     this.dPos_mm  = [dx(:),dy(:)];
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
                     Lo_mm = this.uieLo.get();
-                    dA =atan((eval(this.uiePhaseStepsSim.get())-dN/2)/Lo_mm)/pi*180;
+                    dA =atan((eval(this.uiePhaseStepsSim.get())-dL/2)/Lo_mm)/pi*180;
                     this.uieScanAngles.set(mat2str(dA));
                     if strcmp(this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()},...
                             'Scanning position')&&strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Analysis')
@@ -1069,9 +1069,9 @@ classdef PIE_Analyze < mic.Base
                     if lValid
                         [sr, sc] = size(vals);
                         this.uieScanSteps.set(sr);
-                        dN = this.uieScanSteps.get();
+                        dL = this.uieScanRange.get();
                         Lo_mm = this.uieLo.get();
-                        dP =tan(eval(this.uieScanAngles.get())/180*pi)*Lo_mm+dN/2;
+                        dP =tan(eval(this.uieScanAngles.get())/180*pi)*Lo_mm+dL/2;
                         this.uiePhaseStepsSim.set(mat2str(dP));
                     end
                     
@@ -2578,8 +2578,8 @@ classdef PIE_Analyze < mic.Base
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
                             object = PIE.utils.Propagate (this.dObject(:,:,u8ModeId),propagator,do_um,lambda_um,1);
-                            xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
-                            yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
+                            xo_mm = [1:L]*dc_um*N/L/1000/Magnification; % object coordinates
+                            yo_mm = [1:K]*dc_um*N/K/1000/Magnification; % object coordinates
                         else
                             object = this.dObject(:,:,u8ModeId);
                             xo_mm = [1:L]*do_um/1000; % object coordinates
@@ -2612,8 +2612,8 @@ classdef PIE_Analyze < mic.Base
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
                             object = PIE.utils.Propagate (this.dObjectGuess(:,:,u8ModeId),propagator,do_um,lambda_um,1);
-                            xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
-                            yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
+                            xo_mm = [1:L]*dc_um*N/L/1000/Magnification; % object coordinates
+                            yo_mm = [1:K]*dc_um*N/K/1000/Magnification; % object coordinates
                         else
                             object = this.dObjectGuess(:,:,u8ModeId);
                             xo_mm = [1:L]*do_um/1000; % object coordinates
@@ -2646,8 +2646,8 @@ classdef PIE_Analyze < mic.Base
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
                             object = PIE.utils.Propagate (this.dObjectRecon(:,:,u8ModeId),propagator,do_um,lambda_um,1);
-                            xo_mm = [1:L]*dc_um/1000/Magnification; % object coordinates
-                            yo_mm = [1:K]*dc_um/1000/Magnification; % object coordinates
+                            xo_mm = [1:L]*dc_um*N/L/1000/Magnification; % object coordinates
+                            yo_mm = [1:K]*dc_um*N/K/1000/Magnification; % object coordinates
                         else
                             object = this.dObjectRecon(:,:,u8ModeId);
                             xo_mm = [1:L]*do_um/1000; % object coordinates
