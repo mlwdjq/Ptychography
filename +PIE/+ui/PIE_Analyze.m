@@ -956,6 +956,7 @@ classdef PIE_Analyze < mic.Base
                     end
                     N           = this.uieRes.get();
                     lambda_um   = this.uieLambda.get()/1000;
+                    FP = this.uicbFourierPtychography.get();
                     z_um       = this.uiez2.get()*1000;
                     scanRange_um  = this.uieScanRange.get()*1000;
                     detSize_um  = this.uieDetSize.get()*1000;
@@ -981,15 +982,18 @@ classdef PIE_Analyze < mic.Base
                     [m,n] = meshgrid(linspace(0,1,L),linspace(0,1,K));
                     [sr,sc]= size(object);
                     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
-                    
+                    object = interp2(p,q,object,m,n,'nearest');
+                    if FP
+                        object =  PIE.utils.Propagate (object,propagator,do_um,lambda_um,-1);
+                    end
                     initialGuess = this.uicbGuess.get();
                     if initialGuess
-                        this.dObjectGuess(:,:,u8ModeId) = interp2(p,q,object,m,n,'nearest');
+                        this.dObjectGuess(:,:,u8ModeId) = object;
                         for mn = 2:modeNumber
                             this.dObjectGuess(:,:,mn) = this.dObjectGuess(:,:,1);
                         end
                     else
-                        this.dObject(:,:,u8ModeId) = interp2(p,q,object,m,n,'nearest');
+                        this.dObject(:,:,u8ModeId) = object;
                         for mn = 2:modeNumber
                             this.dObject(:,:,mn) = this.dObject(:,:,1);
                         end
@@ -1258,9 +1262,10 @@ classdef PIE_Analyze < mic.Base
                 phi = atan2(yp_um,xp_um);
                 kx = kr.*cos(phi);
                 ky = kr.*sin(phi);
-                defocus_pha = df_um*2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
+                kz = 2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
+                defocus_pha = df_um.*real(kz);
                 probe_pha = 2*pi*zfn(kr/NAo,phi);
-                probe = probe_amp.*exp(1i*probe_pha).*exp(1i*defocus_pha);
+                probe = probe_amp.*exp(1i*probe_pha).*exp(1i*defocus_pha).*exp(-abs(df_um).*imag(kz));
             end
             probe = circshift(probe,[probeOffset(2), probeOffset(1)]);
             if initialGuess
@@ -1286,15 +1291,23 @@ classdef PIE_Analyze < mic.Base
                 if samplingFactor_obj>1
                     fprintf('Please adjust configurations for propagation sampling\n');
                 end
-                overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
-                this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
+                airyR_um = 0.61*lambda_um/this.uieNA.get();
+                
                 if ~isempty(this.ceSegments)
                     NSeg = length(this.ceSegments);
                     segFactor = sqrt(NSeg)/N;
                 else
                     segFactor = 1;
                 end
-                samplingFactor = 2*Rprobe_um/dR*segFactor;
+                if Rprobe_um> airyR_um
+                    overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
+                    samplingFactor = 2*Rprobe_um/dR*segFactor;
+                else
+                    overlap = PIE.utils.overlapRatio(airyR_um,dR); % overlap ratio of two circles
+                    samplingFactor = 2*airyR_um/dR*segFactor;
+                end
+                this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
+                
                 this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
             catch
             end

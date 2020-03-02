@@ -82,12 +82,12 @@ object_amp = crop2(I2,128,128);
 figure, imagesc(object_phase)
 
 %% contact
-n = 15;
-ns = 170;
+n = 38;
+ns = 150;
 object_amp =pad2(ones(n),ns,ns);
-object_phase = pad2(ones(n),ns,ns)*pi/4;
+object_phase = pad2(ones(n),ns,ns);
 figure(2),imagesc(object_amp)
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/contact200nm.mat','object');
+save('../../data/object/contact.mat','object');
