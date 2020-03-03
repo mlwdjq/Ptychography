@@ -403,7 +403,7 @@ classdef PIE_Analyze < mic.Base
             this.uieScanSteps.set(4);
             dN = this.uieScanSteps.get();
             dL = this.uieScanRange.get();
-            dPosString = sprintf('%0.6f:%0.6f/%d:%0.6f', -dL/2,dL, dN-1, dL/2);
+            dPosString = sprintf('0.6f:%0.6f/%d:%0.6f', -dL/2,dL, dN-1, dL/2);
             this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
             
             this.uieZrn.set('[]');
@@ -444,7 +444,7 @@ classdef PIE_Analyze < mic.Base
             dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
             this.uieMag.set(this.uiez2.get()/Lo_mm);
-            dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
+            dA =atan((eval(this.uiePhaseStepsSim.get())-dL/2)/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
             % Controls:Data:Sim segments
@@ -613,7 +613,7 @@ classdef PIE_Analyze < mic.Base
                 case this.uieScanRange
                     dN = this.uieScanSteps.get();
                     dL = this.uieScanRange.get();
-                    dPosString = sprintf('%0.6f:%0.6f/%d:%0.6f', -dL/2,dL, dN-1, dL/2);
+                    dPosString = sprintf('0.6f:%0.6f/%d:%0.6f', -dL/2,dL, dN-1, dL/2);
                     dPos = eval(dPosString);
                     %                     k = 1;
                     %                     for i =1:dN
@@ -627,7 +627,7 @@ classdef PIE_Analyze < mic.Base
                     this.dPos_mm  = [dm(:),dn(:)];
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
                     Lo_mm = this.uieLo.get();
-                    dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
+                    dA =atan((eval(this.uiePhaseStepsSim.get())-dL/2)/Lo_mm)/pi*180;
                     this.uieScanAngles.set(mat2str(dA));
                     
                     if strcmp(this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()},...
@@ -849,7 +849,7 @@ classdef PIE_Analyze < mic.Base
                         this.uieScanSteps.set(sr);
                         dN = this.uieScanSteps.get();
                         Lo_mm = this.uieLo.get();
-                        dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
+                        dA =atan((eval(this.uiePhaseStepsSim.get())-dN/2)/Lo_mm)/pi*180;
                         this.uieScanAngles.set(mat2str(dA));
                     end
                     
@@ -900,13 +900,13 @@ classdef PIE_Analyze < mic.Base
                 case this.uieScanSteps
                     dN = this.uieScanSteps.get();
                     dL = this.uieScanRange.get();
-                    dPosString = sprintf('%0.6f:%0.6f/%d:%0.6f', -dL/2,dL, dN-1, dL/2);
+                    dPosString = sprintf('0.6f:%0.6f/%d:%0.6f', -dL/2,dL, dN-1, dL/2);
                     dPos = eval(dPosString);
                     [dx,dy] = meshgrid(dPos,dPos);
                     this.dPos_mm  = [dx(:),dy(:)];
                     this.uiePhaseStepsSim.set(sprintf('[%s;%s]''', dPosString, dPosString));
                     Lo_mm = this.uieLo.get();
-                    dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
+                    dA =atan((eval(this.uiePhaseStepsSim.get())-dL/2)/Lo_mm)/pi*180;
                     this.uieScanAngles.set(mat2str(dA));
                     if strcmp(this.uipSelectObject.getOptions{this.uipSelectObject.getSelectedIndex()},...
                             'Scanning position')&&strcmp(this.uitgAxesDisplay.getSelectedTabName(),'Analysis')
@@ -1285,23 +1285,10 @@ classdef PIE_Analyze < mic.Base
                 end
             else % define probe in pupil space for fourier ptychography
                 samplingFactor_obj = lambda_um.*z_um/(N*this.dc_um*this.do_um);
-                Rprobe_um = z_um*tan(asin(NA));
-                k0=2*pi/lambda_um;
-                cutoff = NA*k0;
-                kmax=pi/this.dc_um;
-                [kxm,kym] =meshgrid(linspace(-kmax,kmax,N));
-                kr = sqrt(kxm.^2+kym.^2);
-                phi = atan2(kym,kxm);
-                this.dCTF = (kr<cutoff);
-                %                 kzm = sqrt(k0^2-kxm.^2-kym.^2);
-                kzm = k0*sqrt(1-(kr/cutoff).^2);
-                defocus_pha = exp(1i.*df_um.*real(kzm)).*exp(-abs(df_um).*abs(imag(kzm)));
-                probe_pha = 2*pi*zfn(kr/cutoff,phi);
-                probe = this.dCTF.*exp(1i*probe_pha).*defocus_pha;
-                
-                %                 [xp_um,yp_um] = meshgrid(linspace(-do_um*N/2,do_um*N/2,N));
+%                 [xp_um,yp_um] = meshgrid(linspace(-do_um*N/2,do_um*N/2,N));
 %                 Lo_um = this.uieLo.get()*1000;
 %                 NAo = this.uieNAo.get();
+                Rprobe_um = z_um*tan(asin(NA));
 %                 probe_amp = zeros(N);
 %                 probe_amp((xp_um.^2+yp_um.^2<= Rprobe_um.^2)&(xp_um.^2+yp_um.^2> (Rprobe_um*CenterObstruction).^2)) = 1;
 %                 kr = sin(atan(sqrt(xp_um.^2+yp_um.^2)/Lo_um));
@@ -1310,6 +1297,17 @@ classdef PIE_Analyze < mic.Base
 %                 ky = kr.*sin(phi);
 %                 kz = 2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
 %                 defocus_pha = df_um.*real(kz);
+                k0=2*pi/lambda_um;
+                cutoff = NA*k0;
+                kmax=pi/this.dc_um;
+                [kxm,kym] =meshgrid(linspace(-kmax,kmax,N));
+                kr = sqrt(kxm.^2+kym.^2);
+                phi = atan2(kym,kxm);
+                this.dCTF = (kr<cutoff);
+                kzm = sqrt(k0^2-kxm.^2-kym.^2);
+                defocus_pha = exp(1i.*df_um.*real(kzm)).*exp(-abs(df_um).*abs(imag(kzm)));
+                probe_pha = 2*pi*zfn(kr/cutoff,phi);
+                probe = this.dCTF.*exp(1i*probe_pha).*defocus_pha;
             end
             probe = circshift(probe,[probeOffset(2), probeOffset(1)]);
             if initialGuess
@@ -1636,10 +1634,9 @@ classdef PIE_Analyze < mic.Base
                 k0 = 2*pi/lambda_um;
                 kxy = -k0*sin(atan(this.dPos_mm*1000/z_um));
                 dkxy = 2*pi/this.dc_um/N;
-                Rpix = round(kxy./dkxy);
-                Rpix = Rpix -min(Rpix,[],1);
+                Rpix = round(kxy./dkxy + (N+1)/2);
             else
-                Rpix = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+                Rpix = round((this.dPos_mm-min(this.dPos_mm,2))*1000/this.do_um);
             end
             
 %             dPosShifts = eval(this.uiePhaseStepsSim.get());
@@ -2157,12 +2154,11 @@ classdef PIE_Analyze < mic.Base
                 this.uipbExposureProgress.set(0);
                 if FP
                     k0 = 2*pi/lambda_um;
-                    kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                    kxy = -k0*sin(atan(this.dPos_mm*1000/z_um));
                     dkxy = 2*pi/this.dc_um/N;
-                    dPosShifts = round(kxy./dkxy);
-                    dPosShifts = dPosShifts -min(dPosShifts,[],1);
+                    dPosShifts = round(kxy./dkxy + (N+1)/2);
                 else
-                    dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+                    dPosShifts = round((this.dPos_mm-min(this.dPos_mm,2))*1000/this.do_um);
                 end
                 nSteps = length(dPosShifts);
                 simInts = cell(nSteps, 1);
