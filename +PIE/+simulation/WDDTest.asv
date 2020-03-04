@@ -6,12 +6,12 @@ Gs = permute(G_set_u_U,[3, 2, 1, 4]);
 imagesc(abs(G_set_u_U(:,:,45,33))),axis equal tight
   imagesc(log(abs(Gs(:,:,n,n)))),axis equal tight
 %%
-Ws = permute(WP,[3, 2, 1, 4]);
-imagesc(sqrt(abs(Ws(:,:,32,33))))
-% imagesc(atan2(imag(Ws(:,:,33,33)),real(Ws(:,:,33,33))))
+Ws = permute(WO,[3, 2, 1, 4]);
+imagesc(sqrt(abs(Ws(:,:,33,33))))
+imagesc(atan2(imag(Ws(:,:,33,33)),real(Ws(:,:,33,33))))
 %%
-s =abs(I_set_u_R);
-imagesc(s(:,:,30,33));colorbar;
+s =abs(I_set_u_R_s)-(I_set_u_R);
+imagesc(s(:,:,30,32));colorbar;
 %%
 s1 =abs(H_set_r_U_s);
 s2 =abs(H_set_r_U);

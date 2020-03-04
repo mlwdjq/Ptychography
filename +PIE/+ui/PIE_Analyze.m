@@ -441,9 +441,9 @@ classdef PIE_Analyze < mic.Base
             this.uieLo.set(3);
             
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            dL = this.uieScanRange.get();
+%             dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
-            this.uieMag.set(this.uieNAo.get()/this.uieNA.get());
+%             this.uieMag.set(this.uieNAo.get()/this.uieNA.get());
             dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
@@ -2170,7 +2170,7 @@ classdef PIE_Analyze < mic.Base
 
                 for m = 1:nSteps
                     sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
-                            propagator,[dPosShifts(m,1),dPosShifts(m,2)],H,1,this.dCTF);
+                            propagator,[dPosShifts(m,1),dPosShifts(m,2)],H,1);
                         % add systematic error
                         Int = sqrtInt.^2;
                         simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
@@ -2188,7 +2188,7 @@ classdef PIE_Analyze < mic.Base
                 %
                 sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,...
                     this.ceSegments,modeNumber,N,propagator,[round(scanRange_um/this.do_um/2),...
-                    round(scanRange_um/this.do_um/2)],H,1,this.dCTF);
+                    round(scanRange_um/this.do_um/2)],H,1);
                 % add systematic error
                 Int = sqrtInt.^2;
                 Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);

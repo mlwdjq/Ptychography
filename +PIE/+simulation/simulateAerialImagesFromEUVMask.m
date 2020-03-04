@@ -21,10 +21,11 @@ dc_um = det_um/N; % detector size
 df_um =0; % defocus distance
 pitch_nm = 150; % feature size
 domain_nm = 450; % near field z 
-dx_nm =4;% grid size dx/dy nm
+
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
+dx_nm =L_nm/N;% grid size dx/dy nm
 
 polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 

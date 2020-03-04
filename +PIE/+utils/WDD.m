@@ -40,7 +40,7 @@ for m = 1:N
 end
 I_set_u_R_s= ipermute(I_set_R_u_s,[3, 4, 1, 2]);
 diff = abs(I_set_u_R_s)-I_set_u_R;
-imagesc(diff(:,:,1,33));colorbar;
+imagesc(diff(:,:,32,33));colorbar;
 % finish test
 
 
@@ -83,8 +83,8 @@ end
 %         Xo(:,:,m,n) = ifftshift(ifft2(ifftshift(conj(O_ori_u_U).*O_set_u_U(:,:,m,n))));%% may change the conj
 %     end
 % end
-Xo = conj(WP).*H_set_r_U./(abs(WP).^2+eps);
-Xp = conj(WO).*H_set_r_U./(abs(WO).^2+eps);
+Xo = conj(WP).*H_set_r_U_s./(abs(WP).^2+eps)*sqrt(N);
+Xp = conj(WO).*H_set_r_U_s./(abs(WO).^2+eps)*sqrt(N);
 for m = 1:scanSteps
     for n = 1:scanSteps
         Pu(:,:,m,n) = fftshift(fft2(fftshift(Xp(:,:,m,n))));%% may change the conj
