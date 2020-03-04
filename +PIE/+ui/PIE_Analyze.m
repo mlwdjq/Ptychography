@@ -443,7 +443,7 @@ classdef PIE_Analyze < mic.Base
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
-            this.uieMag.set(this.uiez2.get()/Lo_mm);
+            this.uieMag.set(this.uieNAo.get()/this.uieNA.get());
             dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
@@ -1084,7 +1084,7 @@ classdef PIE_Analyze < mic.Base
                         lambda_mm =this.uieLambda.get()/1000000;
                         Rc_mm = 0.61*lambda_mm/NAi;
                         this.uieRprobe.set(Rc_mm);
-                        this.uieMag.set(Li_mm/Lo_mm);
+                        this.uieMag.set(NAo/NAi);
                     end
                 case this.uieMag
                     if this.uicbFourierPtychography.get()
@@ -1293,9 +1293,9 @@ classdef PIE_Analyze < mic.Base
                 kr = sqrt(kxm.^2+kym.^2);
                 phi = atan2(kym,kxm);
                 this.dCTF = (kr<cutoff);
-                %                 kzm = sqrt(k0^2-kxm.^2-kym.^2);
-                kzm = k0*sqrt(1-(kr/cutoff).^2);
-                defocus_pha = exp(1i.*df_um.*real(kzm)).*exp(-abs(df_um).*abs(imag(kzm)));
+                NAo = this.uieNAo.get();
+                kzm = sqrt(k0^2-(kxm/NA*NAo).^2-(kym/NA*NAo).^2);
+                defocus_pha = exp(1i.*df_um.*real(kzm)).*exp(abs(df_um).*abs(imag(kzm)));
                 probe_pha = 2*pi*zfn(kr/cutoff,phi);
                 probe = this.dCTF.*exp(1i*probe_pha).*defocus_pha;
                 
@@ -1634,10 +1634,11 @@ classdef PIE_Analyze < mic.Base
             % generate scanning coordinates
             if FP
                 k0 = 2*pi/lambda_um;
-                kxy = -k0*sin(atan(this.dPos_mm*1000/z_um));
+                kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
                 dkxy = 2*pi/this.dc_um/N;
                 Rpix = round(kxy./dkxy);
                 Rpix = Rpix -min(Rpix,[],1);
+                [K,L] = size(this.dObjectGuess);
             else
                 Rpix = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
             end
@@ -2152,24 +2153,24 @@ classdef PIE_Analyze < mic.Base
                 KL = round(this.uieScanRange.get()*1000./this.do_um)+N;
                 this.dObject = ones(KL);
             end
-            
-            if lComputePSStack % True if simulating "stack"        
+            if FP
+                k0 = 2*pi/lambda_um;
+                kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                dkxy = 2*pi/this.dc_um/N;
+                dPosShifts = round(kxy./dkxy);
+                dPosShifts = dPosShifts -min(dPosShifts,[],1);
+                [K,L] = size(this.dObject);
+            else
+                dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+            end
+            if lComputePSStack % True if simulating "stack"
                 this.uipbExposureProgress.set(0);
-                if FP
-                    k0 = 2*pi/lambda_um;
-                    kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-                    dkxy = 2*pi/this.dc_um/N;
-                    dPosShifts = round(kxy./dkxy);
-                    dPosShifts = dPosShifts -min(dPosShifts,[],1);
-                else
-                    dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
-                end
                 nSteps = length(dPosShifts);
                 simInts = cell(nSteps, 1);
 
                 for m = 1:nSteps
                     sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
-                            propagator,[dPosShifts(m,1),dPosShifts(m,2)],H,1);
+                            propagator,[dPosShifts(m,1),dPosShifts(m,2)],H,1,this.dCTF);
                         % add systematic error
                         Int = sqrtInt.^2;
                         simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
@@ -2186,7 +2187,8 @@ classdef PIE_Analyze < mic.Base
                 tic
                 %
                 sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,...
-                    this.ceSegments,modeNumber,N,propagator,[round(scanRange_um/this.do_um/2),round(scanRange_um/this.do_um/2)],H,1);
+                    this.ceSegments,modeNumber,N,propagator,[round(scanRange_um/this.do_um/2),...
+                    round(scanRange_um/this.do_um/2)],H,1,this.dCTF);
                 % add systematic error
                 Int = sqrtInt.^2;
                 Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);

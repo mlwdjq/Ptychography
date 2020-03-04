@@ -24,7 +24,7 @@ domain_nm = 450; % near field z
 dx_nm =4;% grid size dx/dy nm
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
-L_nm = 1000*det_um/(Li_um/Lo_um);
+L_nm = 1000*det_um/(NAo/NAi);
 
 polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 
@@ -68,7 +68,7 @@ for i=1: scanSteps^2
         %% run simulator using TEMPEST
         E(:,:,i) = PIE.utils.runSimulator(polarDire);
         %% generate aerial images
-        aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
+        aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
 end
 
 %% save data

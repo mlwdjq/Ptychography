@@ -32,7 +32,7 @@ else
         exitWave = reconBox.* dProbeRecon.*CTF;
         [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt,...
             propagator,H,Hm,1);
-%         exitWaveNew = exitWaveNew.*CTF.*(1./dProbeRecon+eps);
+         exitWaveNew = exitWaveNew.*CTF;
         tempProbe = dProbeRecon;
         denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
         newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
@@ -45,7 +45,7 @@ else
         exitWave = reconBox.*dProbeRecon.*CTF;
         [exitWaveNew,detectorWave] = PIE.utils.UpdateMultimodeExitWave(exitWave,sqrtInt,modeNumber,...
             propagator,H,Hm,1);
-%         exitWaveNew = exitWaveNew.*CTF./(dProbeRecon+eps);
+        exitWaveNew = exitWaveNew.*CTF;
         tempProbe = dProbeRecon;
         denomO = gamma*max(max(abs(tempProbe).^2)) + (1-gamma)*abs(tempProbe).^2;
         newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;
