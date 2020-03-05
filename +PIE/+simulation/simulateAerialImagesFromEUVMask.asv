@@ -20,7 +20,6 @@ dc_um = det_um/N; % detector size
 df_um =0; % defocus distance
 pitch_nm = 150; % feature size
 domain_nm = 450; % near field z 
-t_abs_nm =10; % absorber thickness
 
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
@@ -40,7 +39,7 @@ para.L = L_nm;
 para.pitch = pitch_nm; 
 para.dx = dx_nm; 
 para.dz = dz_nm; 
-para.t_abs = t_abs_nm;
+
 
 %% open simulator
 PIE.utils.openSimulator(apiPath);
@@ -57,8 +56,8 @@ dPos = -scanRange_um/2:scanRange_um/(scanSteps-1):scanRange_um/2;
 dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
 load('D:\OneDrive\Ptychography\code\Ptychography\data\scanning\circular_FPM_5by5.mat');
-theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
-phi = atan2(dPos_mm(:,2),dPos_mm(:,1))/pi*180; % illumination azimuthes
+theta= atan(sqrt(dm.^2+dn.^2)/Lo_um)/pi*180; % illumination angles
+phi = atan2(dn,dm)/pi*180; % illumination azimuthes
 dA = [theta(:),phi(:)];
 
 E = zeros(N,N,scanSteps^2);
@@ -72,7 +71,7 @@ for i=1: scanSteps^2
         aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
 end
 %%
-% df_um =0.09;
+% df_um =-0.09;
 % for i=1: scanSteps^2
 %     aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
 %     figure(2),imagesc(aerialImages{i});pause(0.2);

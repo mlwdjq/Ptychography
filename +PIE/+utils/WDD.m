@@ -1,7 +1,7 @@
 % reference: Li, P., Edo, T. B., & Rodenburg, J. M. (2014).
 % Ptychographic inversion via Wigner distribution deconvolution:
 % Noise suppression and probe design. Ultramicroscopy, 147, 106-113.
-function [dObjectRecon,dProbeRecon] = WDD(dObjectRecon,dProbeRecon,sqrtInt,N,Rpix,scanSteps)
+function [dObjectRecon,dProbeRecon] = WDD(dObjectRecon,dProbeRecon,sqrtInt,N,Rpix,scanSteps,epsilon)
 % I_set(u,R), G_set(u,U), H_set(r,U), L_set(r,R)
 I_set_u_R = reshape(sqrtInt.^2,N,N,scanSteps,scanSteps);
 I_set_R_u= permute(I_set_u_R,[3, 4, 1, 2]);
@@ -19,28 +19,34 @@ O_set_U_u = G_set_U_u;
 P_set_U_u = G_set_u_U;
 G_set_u_U_s = G_set_u_U;
 I_set_R_u_s =I_set_R_u;
+D_set_u_U_O =G_set_u_U;
+D_set_u_U_P =G_set_u_U;
 Pu = G_set_u_U;
 Ou = G_set_u_U;
 FP = fftshift(fft2(fftshift(dProbeRecon)));
-FO = fftshift(fft2(fftshift(single(crop2(dObjectRecon,N,N)))));
-WP = PIE.utils.mywigner2(FP,1);
-WO = PIE.utils.mywigner2(FO,-1);
+dObjectCrop = single(crop2(dObjectRecon,N,N));
+FO = fftshift(fft2(fftshift(dObjectCrop)));
+% figure(3),imagesc(abs(dObjectCrop))
+[WP,FWP] = PIE.utils.mywigner2(FP,-1);
+[WO,FWO] = PIE.utils.mywigner2(FO,1);
 %% test
- H_set_r_U_s = WP.*WO./sqrt(N);
-for m = 1:scanSteps
-    for n = 1:scanSteps
-        G_set_u_U_s(:,:,m,n) = fftshift(fft2(fftshift(H_set_r_U_s(:,:,m,n)))); % from u to r
-    end
-end
-G_set_U_u_s = permute(G_set_u_U_s,[3 4 1 2]);
-for m = 1:N
-    for n = 1:N
-        I_set_R_u_s(:,:,m,n) = ifftshift(ifft2(ifftshift(G_set_U_u_s(:,:,m,n)))); % from R to U
-    end
-end
-I_set_u_R_s= ipermute(I_set_R_u_s,[3, 4, 1, 2]);
-diff = abs(I_set_u_R_s)-I_set_u_R;
-imagesc(diff(:,:,32,33));colorbar;
+%  H_set_r_U_s = WP.*WO./sqrt(N);
+% for m = 1:scanSteps
+%     for n = 1:scanSteps
+%         G_set_u_U_s(:,:,m,n) = fftshift(fft2(fftshift(H_set_r_U_s(:,:,m,n)))); % from u to r
+%     end
+% end
+% G_set_U_u_s = permute(G_set_u_U_s,[3 4 1 2]);
+% for m = 1:N
+%     for n = 1:N
+%         I_set_R_u_s(:,:,m,n) = ifftshift(ifft2(ifftshift(G_set_U_u_s(:,:,m,n)))); % from R to U
+%     end
+% end
+% I_set_u_R_s= ipermute(I_set_R_u_s,[3, 4, 1, 2]);
+% diff = abs(I_set_u_R_s)-I_set_u_R;
+% % imagesc(diff(:,:,32,33));colorbar;
+% 
+% FOs = PIE.utils.deconvolution(FWO,FP,1);
 % finish test
 
 
@@ -83,25 +89,37 @@ end
 %         Xo(:,:,m,n) = ifftshift(ifft2(ifftshift(conj(O_ori_u_U).*O_set_u_U(:,:,m,n))));%% may change the conj
 %     end
 % end
-Xo = conj(WP).*H_set_r_U_s./(abs(WP).^2+eps)*sqrt(N);
-Xp = conj(WO).*H_set_r_U_s./(abs(WO).^2+eps)*sqrt(N);
+Xo = conj(WP).*H_set_r_U./(abs(WP).^2+epsilon)*sqrt(N);
+Xp = conj(WO).*H_set_r_U./(abs(WO).^2+epsilon)*sqrt(N);
+
 for m = 1:scanSteps
     for n = 1:scanSteps
-        Pu(:,:,m,n) = fftshift(fft2(fftshift(Xp(:,:,m,n))));%% may change the conj
-        Ou(:,:,m,n) = fftshift(fft2(fftshift(Xo(:,:,m,n))));%% may change the conj
+        D_set_u_U_O(:,:,m,n) = fftshift(fft2(fftshift(Xo(:,:,m,n))));
+        D_set_u_U_P(:,:,m,n) = fftshift(fft2(fftshift(Xp(:,:,m,n))));
     end
 end
-for m = 1:scanSteps
-    for n = 1:scanSteps
-        %         P(m,n) =Pu(round(N/scanSteps*(m-1))+1,round(N/scanSteps*(n-1))+1,m,n);%% may change the conj
-        %         O(m,n) =Ou(round(N/scanSteps*(m-1))+1,round(N/scanSteps*(n-1))+1,m,n);%% may change the conj
-        P(m,n) =Pu(m,n,m,n);%% may change the conj
-        O(m,n) =Ou(m,n,m,n);%% may change the conj
-    end
-end
-dProbeRecon = ifftshift(ifft2(ifftshift(P)));
-dObjectRecon = ifftshift(ifft2(ifftshift(O)));
-q_amp =abs(dProbeRecon);
-q_pha =atan2(imag(dObjectRecon),real(dObjectRecon));
-imagesc(q_amp);colorbar;
-s=1
+
+dObjectRecon = pad2(PIE.utils.deconvolution(D_set_u_U_O,FP,1),length(dObjectRecon),length(dObjectRecon));
+dProbeRecon = PIE.utils.deconvolution(D_set_u_U_P,FO,-1);
+% figure(3),imagesc(abs(dObjectRecon))
+
+% for m = 1:scanSteps
+%     for n = 1:scanSteps
+%         Pu(:,:,m,n) = fftshift(fft2(fftshift(Xp(:,:,m,n))));%% may change the conj
+%         Ou(:,:,m,n) = fftshift(fft2(fftshift(Xo(:,:,m,n))));%% may change the conj
+%     end
+% end
+% for m = 1:scanSteps
+%     for n = 1:scanSteps
+%         %         P(m,n) =Pu(round(N/scanSteps*(m-1))+1,round(N/scanSteps*(n-1))+1,m,n);%% may change the conj
+%         %         O(m,n) =Ou(round(N/scanSteps*(m-1))+1,round(N/scanSteps*(n-1))+1,m,n);%% may change the conj
+%         P(m,n) =Pu(m,n,m,n);%% may change the conj
+%         O(m,n) =Ou(m,n,m,n);%% may change the conj
+%     end
+% end
+% dProbeRecon = ifftshift(ifft2(ifftshift(P)));
+% dObjectRecon = ifftshift(ifft2(ifftshift(O)));
+% q_amp =abs(dProbeRecon);
+% q_pha =atan2(imag(dObjectRecon),real(dObjectRecon));
+% imagesc(q_amp);colorbar;
+% s=1

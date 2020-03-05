@@ -1,4 +1,4 @@
-function W = mywigner2(Exy,dire)
+function [w,W] = mywigner2(Exy,dire)
 %MYWIGNER: Calculates the Wigner distribution from a column vector
 %
 %	W  = mywigner(Ex)
@@ -26,14 +26,15 @@ function W = mywigner2(Exy,dire)
 
 N = length(Exy);
 W = zeros(N,N,N,N);%   Get length of vector
-
+w = zeros(N,N,N,N);%   Get length of vector
 [x,y] = meshgrid(ifftshift(((0:N-1)-N/2)*2*pi/(N)));							%   Generate linear vector
 [X,Y] = meshgrid((0:N-1)-N/2);
 for m =1:N
     for n = 1:N
-        EXY1 = fft2( ifft2(Exy).*exp( -dire*1i*x*X(n,m)/2*0 ).*exp( -dire*1i*y*Y(n,m)/2*0 ));			%   f(u)
-        EXY2 = fft2( ifft2(Exy).*exp( dire*1i*x*X(n,m)/2*2 ).*exp( dire*1i*y*Y(n,m)/2*2 ));			%   f(u+U)
-        W(:,:,m,n) = ifftshift(ifft2(ifftshift(EXY2.*conj(EXY1))));		%   Wigner function
+        EXY1 = fft2( ifft2(Exy));			%   f(u)
+        EXY2 = fft2( ifft2(Exy).*exp( dire*1i*x*X(n,m) ).*exp( dire*1i*y*Y(n,m) ));			%   f(u+U)
+        W(:,:,m,n) = EXY1.*conj(EXY2);		%   Wigner function
+        w(:,:,m,n) = ifftshift(ifft2(ifftshift(EXY1.*conj(EXY2))));		%   Wigner function
 %          figure(2),imagesc(abs(EXY1));drawnow;
     end
 end
