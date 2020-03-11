@@ -437,16 +437,16 @@ classdef PIE_Analyze < mic.Base
             this.uieProbeOffset.set('[]');
             this.uipPropagator.setSelectedIndex(uint8(2));
             % Controls:Data:FPM
-            this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieLo = mic.ui.common.Edit('cLabel', 'Obj. Length (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieMag = mic.ui.common.Edit('cLabel', 'Magnification', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
+            this.uieLo = mic.ui.common.Edit('cLabel', 'Obj. Length (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
+            this.uieMag = mic.ui.common.Edit('cLabel', 'Magnification', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
             this.uieNAo.set(0);
             this.uieLo.set(3);
             
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
 %             dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
-%             this.uieMag.set(this.uieNAo.get()/this.uieNA.get());
+            this.uieMag.set(1);
             dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
@@ -578,6 +578,7 @@ classdef PIE_Analyze < mic.Base
                         lambda_mm =this.uieLambda.get()/1000000;
                         Rc_mm = 0.61*lambda_mm/NAi;
                         this.uieRprobe.set(Rc_mm);
+                        this.uieMag.set(NAo/NAi);
                     end
                     
                     % redraw guide lines
@@ -1090,6 +1091,7 @@ classdef PIE_Analyze < mic.Base
                         lambda_mm =this.uieLambda.get()/1000000;
                         Rc_mm = 0.61*lambda_mm/NAi;
                         this.uieRprobe.set(Rc_mm);
+                        this.uieMag.set(NAo/NAi);
                     end
                     
                 case this.uieLo
@@ -1425,6 +1427,9 @@ classdef PIE_Analyze < mic.Base
                     end
                 case 'From reconstruction'
                     object = this.dObjectRecon(:,:,u8ModeId);
+                    if FP
+                        object =  PIE.utils.Propagate (object,propagator,this.do_um,lambda_um,1);
+                    end
             end
             if FP
                 object =  PIE.utils.Propagate (object,propagator,this.do_um,lambda_um,-1);
@@ -1665,7 +1670,10 @@ classdef PIE_Analyze < mic.Base
             % generate scanning coordinates
             if FP
                 k0 = 2*pi/lambda_um;
-                kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+%                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                phi = atan2(this.dPos_mm(:,2),this.dPos_mm(:,2));
+                kxy = [kr.*cos(phi),kr.*sin(phi)];
                 dkxy = 2*pi/this.dc_um/N;
                 Rpix = round(kxy./dkxy);
                 Rpix = Rpix -min(Rpix,[],1);
@@ -2665,13 +2673,13 @@ classdef PIE_Analyze < mic.Base
                         this.haObjectPha.Title.String = 'Object phase';this.haObjectPha.XLabel.String = 'mm';this.haObjectPha.YLabel.String = 'mm';
                     case  this.U8GUESS
                         propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
-                        detSize_um  = this.uieDetSize.get()*1000;
+%                         detSize_um  = this.uieDetSize.get()*1000;
                         u8ModeId = this.uilSelectMode.getSelectedIndexes();
                         lambda_um =this.uieLambda.get()/1000;
-                        z_um =this.uiez2.get()*1000;
+%                         z_um =this.uiez2.get()*1000;
                         N           = this.uieRes.get();
                         [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
-                        xp_mm = [1:N]*this.do_um/1000; % object coordinates
+                        xp_mm = linspace(-N/2,N/2,N)*this.do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
                             object = PIE.utils.Propagate (this.dObjectGuess(:,:,u8ModeId),propagator,this.do_um,lambda_um,1);
@@ -2695,10 +2703,10 @@ classdef PIE_Analyze < mic.Base
                         propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
                         lambda_um =this.uieLambda.get()/1000;
                         u8ModeId = this.uilSelectMode.getSelectedIndexes();
-                        z_um =this.uiez2.get()*1000;
+%                         z_um =this.uiez2.get()*1000;
                         N           = this.uieRes.get();
                         [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
-                        xp_mm = [1:N]*this.do_um/1000; % object coordinates
+                        xp_mm = linspace(-N/2,N/2,N)*this.do_um/1000; % object coordinates
                         Magnification = this.uieMag.get();
                         if this.uicbFourierPtychography.get()
                             object = PIE.utils.Propagate (this.dObjectRecon(:,:,u8ModeId),propagator,this.do_um,lambda_um,1);

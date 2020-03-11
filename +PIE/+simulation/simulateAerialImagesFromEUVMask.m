@@ -21,7 +21,7 @@ df_um =0; % defocus distance
 pitch_nm = 150; % feature size
 domain_nm = 450; % near field z 
 t_abs_nm =10; % absorber thickness
-
+method = 'KirchhoffThin';
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
@@ -58,25 +58,31 @@ dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
 load('D:\OneDrive\Ptychography\code\Ptychography\data\scanning\circular_FPM_5by5.mat');
 theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
-phi = atan2(dPos_mm(:,2),dPos_mm(:,1))/pi*180; % illumination azimuthes
+phi = atan2(-dPos_mm(:,2),-dPos_mm(:,1))/pi*180; % illumination azimuthes
 dA = [theta(:),phi(:)];
-
+% ky = -sin(atan(dPos_mm(:,1)/(Lo_um/1000)));
+% kx = -sin(atan(dPos_mm(:,2)/(Lo_um/1000)));
+% kx2 = -sin(theta/180*pi).*sin(phi/180*pi);
+% ky2 = -sin(theta/180*pi).*cos(phi/180*pi);
+% [x,y] = meshgrid(linspace(-1,1,150));
+% pha = 2*pi*kx2(3).*x*25.49+2*pi*ky2(3).*y*25.49;
 E = zeros(N,N,scanSteps^2);
 aerialImages = cell(scanSteps^2,1);
 for i=1: scanSteps^2
         setVariableValues( 'theta',dA(i,1));
         setVariableValues( 'phi',dA(i,2));
         %% run simulator using TEMPEST
-        E(:,:,i) = PIE.utils.runSimulator(polarDire);
+        E(:,:,i) = PIE.utils.runSimulator(polarDire,method);
+%         pha_near =PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(pha_near,255*ones(N));
         %% generate aerial images
         aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
 end
 %%
-% df_um =0.09;
-% for i=1: scanSteps^2
-%     aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
-%     figure(2),imagesc(aerialImages{i});pause(0.2);
-% end
+df_um =0;
+for i=1: scanSteps^2
+    aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,N);
+    figure(2),imagesc(aerialImages{i});pause(0.2);
+end
 
 %% save data
 if saveData==1

@@ -1,8 +1,16 @@
 function [E, amp_near, pha_near,Ex_amp,Ex_phi,Ey_amp,Ey_phi,Ez_amp,Ez_phi,...
     intensity,scatteredOrder_TE_amp,scatteredOrder_TE_pha,scatteredOrder_TM_amp,scatteredOrder_TM_pha]...
-    = runSimulator(polarDire)
+    = runSimulator(polarDire,method)
 tic,
-outh = simulateMaskUsingTEMPESTpr2(1);
+if nargin<2
+    method = 'TEMPESTpr2';
+end
+switch method
+    case 'TEMPESTpr2'
+        outh = simulateMaskUsingTEMPESTpr2(1);
+    case 'KirchhoffThin'
+        outh = simulateMaskUsingStackKirchhoffThick(1);
+end
 fprintf('near field simulation took %0.1fs\n',toc);
 
 % getDataSeriesText

@@ -437,16 +437,16 @@ classdef PIE_Analyze < mic.Base
             this.uieProbeOffset.set('[]');
             this.uipPropagator.setSelectedIndex(uint8(2));
             % Controls:Data:FPM
-            this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieLo = mic.ui.common.Edit('cLabel', 'Obj. Length (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uieMag = mic.ui.common.Edit('cLabel', 'Magnification', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
+            this.uieLo = mic.ui.common.Edit('cLabel', 'Obj. Length (mm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
+            this.uieMag = mic.ui.common.Edit('cLabel', 'Magnification', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
             this.uieNAo.set(0);
             this.uieLo.set(3);
             
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
 %             dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
-%             this.uieMag.set(this.uieNAo.get()/this.uieNA.get());
+            this.uieMag.set(1);
             dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
             this.uieScanAngles.set(mat2str(dA));
             
@@ -488,8 +488,8 @@ classdef PIE_Analyze < mic.Base
             this.uieAccuracy              = mic.ui.common.Edit('cLabel', 'Accuracy', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uicbGPU = mic.ui.common.Checkbox('cLabel', 'GPU acceleration',  'fhDirectCallback', @(src, evt)this.cb(src));
             this.uicbGPU.set(false);
-            this.uieAlpha.set(1);
-            this.uieBeta.set(1);
+            this.uieAlpha.set(0.5);
+            this.uieBeta.set(0.5);
             this.uieMaxIteration.set(1000);
             this.uieAccuracy.set(0.0001);
             
@@ -578,6 +578,7 @@ classdef PIE_Analyze < mic.Base
                         lambda_mm =this.uieLambda.get()/1000000;
                         Rc_mm = 0.61*lambda_mm/NAi;
                         this.uieRprobe.set(Rc_mm);
+                        this.uieMag.set(NAo/NAi);
                     end
                     
                     % redraw guide lines
@@ -1015,10 +1016,14 @@ classdef PIE_Analyze < mic.Base
                     
                     if FP
                         k0 = 2*pi/lambda_um;
-                        kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                        %                         kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                        kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                        phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
+                        kxy = [kr.*sin(phi),kr.*cos(phi)];
                         dkxy = 2*pi/this.dc_um/N;
-                        dPosShifts = round(kxy./dkxy);
+                        dPosShifts = kxy./dkxy;
                         dPosShifts = dPosShifts -min(dPosShifts,[],1);
+                        dPosShifts = round(dPosShifts);
                         K = max(dPosShifts(:,1))+N;
                         L = max(dPosShifts(:,2))+N;
                     else
@@ -1090,6 +1095,7 @@ classdef PIE_Analyze < mic.Base
                         lambda_mm =this.uieLambda.get()/1000000;
                         Rc_mm = 0.61*lambda_mm/NAi;
                         this.uieRprobe.set(Rc_mm);
+                        this.uieMag.set(NAo/NAi);
                     end
                     
                 case this.uieLo
@@ -1376,10 +1382,14 @@ classdef PIE_Analyze < mic.Base
             %% initial object
             if FP
                 k0 = 2*pi/lambda_um;
-                kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
+                kxy = [kr.*sin(phi),kr.*cos(phi)];
                 dkxy = 2*pi/this.dc_um/N;
-                dPosShifts = round(kxy./dkxy);
+                dPosShifts = kxy./dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
+                dPosShifts = round(dPosShifts);
                 K = max(dPosShifts(:,1))+N;
                 L = max(dPosShifts(:,2))+N;
             else
@@ -1668,10 +1678,14 @@ classdef PIE_Analyze < mic.Base
             % generate scanning coordinates
             if FP
                 k0 = 2*pi/lambda_um;
-                kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+%                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
+                kxy = [kr.*sin(phi),kr.*cos(phi)];
                 dkxy = 2*pi/this.dc_um/N;
-                Rpix = round(kxy./dkxy);
+                Rpix = kxy./dkxy;
                 Rpix = Rpix -min(Rpix,[],1);
+                Rpix = round(Rpix);
                 [K,L] = size(this.dObjectGuess);
             else
                 Rpix = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
@@ -2190,10 +2204,14 @@ classdef PIE_Analyze < mic.Base
             end
             if FP
                 k0 = 2*pi/lambda_um;
-                kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
+                kxy = [kr.*sin(phi),kr.*cos(phi)];
                 dkxy = 2*pi/this.dc_um/N;
-                dPosShifts = round(kxy./dkxy);
+                dPosShifts = kxy./dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
+                dPosShifts = round(dPosShifts);
                 [K,L] = size(this.dObject);
             else
                 dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
