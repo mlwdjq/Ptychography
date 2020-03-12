@@ -3,8 +3,8 @@
 %% simulation parameters
 % basically unchanged parameters
 apiPath = 'C:\Program Files\Panoramic\v700';
-setupFile = 'D:\OneDrive\Ptychography\code\Ptychography\data\EM-Suite\mask_EUV2.sim';
-dataFile = ['D:\OneDrive\Ptychography\code\Ptychography\data\Aerial images\aerial-images_', regexprep(datestr(now, 31), ':', '.'),'.mat'];
+setupFile = [pie.cAppPath,'\..\..\data\EM-Suite\mask_EUV2.sim'];
+dataFile = [pie.cAppPath,'\..\..\data\Aerial images\aerial-images_', regexprep(datestr(now, 31), ':', '.'),'.mat'];
 lambda_um = pie.uieLambda.get()/1000; % DUV
 Lo_um =pie.uieLo.get()*1000; % object distance
 Li_um =pie.uiez2.get()*1000; % imaging distance
@@ -56,7 +56,7 @@ dPos = -scanRange_um/2:scanRange_um/(scanSteps-1):scanRange_um/2;
 [dm,dn] = meshgrid(dPos,dPos);
 dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
-load('D:\OneDrive\Ptychography\code\Ptychography\data\scanning\circular_FPM_seg16.mat');
+load([pie.cAppPath,'\..\..\data\scanning\circular_FPM_seg16.mat']);
 nInt = size(dPos_mm,1);
 theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
 phi = atan2(-dPos_mm(:,2),-dPos_mm(:,1))/pi*180; % illumination azimuthes
