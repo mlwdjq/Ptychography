@@ -16,10 +16,10 @@ det_um = pie.uieDetSize.get()*1000; % detector size
 N = length(pie.dObject); % sampling
 Nc = pie.uieRes.get(); % sampling
 dc_um = det_um/Nc; % detector size
-df_um =0; % defocus distance
+
 domain_nm = 450; % near field z 
 t_abs_nm =60; % absorber thickness
-method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
+method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
@@ -67,38 +67,48 @@ dA = [theta(:),phi(:)];
 % ky2 = -sin(theta/180*pi).*cos(phi/180*pi);
 % [x,y] = meshgrid(linspace(-1,1,150));
 % pha = 2*pi*kx2(3).*x*25.49+2*pi*ky2(3).*y*25.49;
-E = zeros(N,N,scanSteps^2);
-aerialImages = cell(scanSteps^2,1);
-maxInt = 0;
+Ex_amp = zeros(N,N,nInt);
+Ex_pha = zeros(N,N,nInt);
+Ey_amp = zeros(N,N,nInt);
+Ey_pha = zeros(N,N,nInt);
+aerialImages = cell(nInt,1);
+
+%% run simulator using TEMPEST
 for i=1: nInt
         setVariableValues( 'theta',dA(i,1));
         setVariableValues( 'phi',dA(i,2));
-        %% run simulator using TEMPEST
-        E(:,:,i) = PIE.utils.runSimulator(polarDire,method);
+        [~,~,~,Ex_amp(:,:,i),Ex_pha(:,:,i),Ey_amp(:,:,i),Ey_pha(:,:,i)] = PIE.utils.runSimulator(polarDire,method);
         %         pha_near =PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(pha_near,255*ones(N));
-        if strcmp(method,'KirchhoffThin')
-            E(:,:,i) = E(:,:,i)./abs(E(1,1,i));
+end
+
+%% generate aerial images
+maxInt = 0;
+df_um =0; % defocus distance
+for i=1: nInt
+        switch method
+            case 'KirchhoffThin'
+                Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
+                total = sum(abs(Ex(:)).^2);
+                Ex = Ex/sqrt(total);
+                aerialImages{i}=  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+            case 'TEMPESTpr2'
+                Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
+                Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i));
+%                 total = sum(abs(Ex(:)).^2)+sum(abs(Ey(:)).^2);
+%                 Ex = Ex/sqrt(total);
+%                 Ey = Ey/sqrt(total);
+                aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+                aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+                aerialImages{i}= aerialImagesx+aerialImagesy;
         end
-        %% generate aerial images
-        aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
         if max(max(abs(aerialImages{i})))>maxInt
             maxInt = max(max(aerialImages{i}));
         end
 end
-%% remove defocus
-% df_um =0;
-% maxInt=0;
-% for i=1: nInt
-%     aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
-%     figure(2),imagesc(aerialImages{i});pause(0.1);
-%     if max(max(abs(aerialImages{i})))>maxInt
-%         maxInt = max(max(aerialImages{i}));
-%     end
-% end
 
 %% save data
 if saveData==1
-    save(dataFile, 'para', 'E', 'theta', 'phi','aerialImages','dPos_mm');
+    save(dataFile, 'para','Ex_amp','Ey_amp','Ex_pha','Ey_pha', 'theta', 'phi','aerialImages','dPos_mm');
 end
 %% save images
 if saveImage == 1

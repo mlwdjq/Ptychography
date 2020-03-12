@@ -3,8 +3,8 @@
 %% simulation parameters
 % basically unchanged parameters
 apiPath = 'C:\Program Files\Panoramic\v700';
-setupFile = 'D:\OneDrive\Ptychography\code\Ptychography\data\EM-Suite\mask_EUV2.sim';
-dataFile = ['D:\OneDrive\Ptychography\code\Ptychography\data\Aerial images\aerial-images_', regexprep(datestr(now, 31), ':', '.'),'.mat'];
+setupFile = [pie.cAppPath,'\..\..\data\EM-Suite\mask_EUV2.sim'];
+dataFile = [pie.cAppPath,'\..\..\data\Aerial images\aerial-images_', regexprep(datestr(now, 31), ':', '.'),'.mat'];
 lambda_um = pie.uieLambda.get()/1000; % DUV
 Lo_um =pie.uieLo.get()*1000; % object distance
 Li_um =pie.uiez2.get()*1000; % imaging distance
@@ -19,7 +19,7 @@ dc_um = det_um/Nc; % detector size
 df_um =0; % defocus distance
 domain_nm = 450; % near field z 
 t_abs_nm =60; % absorber thickness
-method ='KirchhoffThin';% 'KirchhoffThin';
+method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
@@ -56,7 +56,7 @@ dPos = -scanRange_um/2:scanRange_um/(scanSteps-1):scanRange_um/2;
 [dm,dn] = meshgrid(dPos,dPos);
 dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
-load('D:\OneDrive\Ptychography\code\Ptychography\data\scanning\circular_FPM_seg32.mat');
+load([pie.cAppPath,'\..\..\data\scanning\circular_FPM_seg16.mat']);
 nInt = size(dPos_mm,1);
 theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
 phi = atan2(-dPos_mm(:,2),-dPos_mm(:,1))/pi*180; % illumination azimuthes
@@ -67,40 +67,59 @@ dA = [theta(:),phi(:)];
 % ky2 = -sin(theta/180*pi).*cos(phi/180*pi);
 % [x,y] = meshgrid(linspace(-1,1,150));
 % pha = 2*pi*kx2(3).*x*25.49+2*pi*ky2(3).*y*25.49;
-E = zeros(N,N,scanSteps^2);
-aerialImages = cell(scanSteps^2,1);
+E = zeros(N,N,nInt);
+Ex_amp = zeros(N,N,nInt);
+Ex_pha = zeros(N,N,nInt);
+Ey_amp = zeros(N,N,nInt);
+Ey_pha = zeros(N,N,nInt);
+
+aerialImages = cell(nInt,1);
 maxInt = 0;
 for i=1: nInt
         setVariableValues( 'theta',dA(i,1));
         setVariableValues( 'phi',dA(i,2));
         %% run simulator using TEMPEST
-        E(:,:,i) = PIE.utils.runSimulator(polarDire,method);
+        [E(:,:,i),~,~,Ex_amp(:,:,i),Ex_pha(:,:,i),Ey_amp(:,:,i),Ey_pha(:,:,i)] = PIE.utils.runSimulator(polarDire,method);
         %         pha_near =PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(pha_near,255*ones(N));
-        if strcmp(method,'KirchhoffThin')
-            E(:,:,i) = E(:,:,i)./abs(E(1,1,i));
-        end
         %% generate aerial images
-        aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+        switch method
+            case 'KirchhoffThin'
+                E(:,:,i) = E(:,:,i)./abs(E(1,1,i));
+                aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+            case 'TEMPESTpr2'
+                Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
+                Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i));
+                aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+                aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+                aerialImages{i}= aerialImagesx+aerialImagesy;
+        end
         if max(max(abs(aerialImages{i})))>maxInt
             maxInt = max(max(aerialImages{i}));
         end
 end
-%%
-df_um =0;
-for i=1: nInt
-    aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
-    figure(2),imagesc(aerialImages{i});pause(0.2);
-end
+%% remove defocus
+% df_um =0;
+% maxInt=0;
+% Es = E;
+% for i=1: nInt
+%     total = sum(sum(abs(E(:,:,i)).^2));
+%     E(:,:,i)=E(:,:,i)/sqrt(total);
+%     aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+%     figure(2),imagesc(aerialImages{i});colorbar;pause(0.1);
+%     if max(max(abs(aerialImages{i})))>maxInt
+%         maxInt = max(max(aerialImages{i}));
+%     end
+% end
 
 %% save data
 if saveData==1
-    save(dataFile, 'para', 'E', 'theta', 'phi','aerialImages','dPos_mm');
+    save(dataFile, 'para', 'E','Ex_amp','Ey_amp','Ex_pha','Ey_pha', 'theta', 'phi','aerialImages','dPos_mm');
 end
 %% save images
 if saveImage == 1
     mkdir(dataFile(1:end-4));
     for i= 1:nInt
-        imwrite(aerialImages{i}/maxInt,[dataFile(1:end-4),'_',num2str(i),'.bmp']);
+        imwrite(aerialImages{i}/maxInt,[dataFile(1:end-4),'\',num2str(i),'.bmp']);
     end
 end
 
