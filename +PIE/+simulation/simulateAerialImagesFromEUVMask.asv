@@ -19,7 +19,7 @@ dc_um = det_um/Nc; % detector size
 df_um =0; % defocus distance
 domain_nm = 450; % near field z 
 t_abs_nm =60; % absorber thickness
-method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
+method ='KirchhoffThin';% 'KirchhoffThin';
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
@@ -56,7 +56,7 @@ dPos = -scanRange_um/2:scanRange_um/(scanSteps-1):scanRange_um/2;
 [dm,dn] = meshgrid(dPos,dPos);
 dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
-load('D:\OneDrive\Ptychography\code\Ptychography\data\scanning\circular_FPM_seg16.mat');
+load('D:\OneDrive\Ptychography\code\Ptychography\data\scanning\circular_FPM_seg32.mat');
 nInt = size(dPos_mm,1);
 theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
 phi = atan2(-dPos_mm(:,2),-dPos_mm(:,1))/pi*180; % illumination azimuthes
@@ -85,16 +85,12 @@ for i=1: nInt
             maxInt = max(max(aerialImages{i}));
         end
 end
-%% remove defocus
-% df_um =0;
-% maxInt=0;
-% for i=1: nInt
-%     aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
-%     figure(2),imagesc(aerialImages{i});pause(0.1);
-%     if max(max(abs(aerialImages{i})))>maxInt
-%         maxInt = max(max(aerialImages{i}));
-%     end
-% end
+%%
+df_um =0;
+for i=1: nInt
+    aerialImages{i}=  PIE.utils.getAerialImages(E(:,:,i),NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+    figure(2),imagesc(aerialImages{i});pause(0.2);
+end
 
 %% save data
 if saveData==1
@@ -104,7 +100,7 @@ end
 if saveImage == 1
     mkdir(dataFile(1:end-4));
     for i= 1:nInt
-        imwrite(aerialImages{i}/maxInt,[dataFile(1:end-4),'\',num2str(i),'.bmp']);
+        imwrite(aerialImages{i}/maxInt,[dataFile(1:end-4),'_',num2str(i),'.bmp']);
     end
 end
 

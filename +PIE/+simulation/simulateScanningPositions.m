@@ -43,5 +43,14 @@ dPos_mm =dPos_mm;
 dPos_mm(N^2+1:end,:)=[];
 length(dPos_mm)
 figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
+%% segment scanning
+r1 = 0.1043;
+r2 = 0.2141;
+dPhi =pi/8;
+phi = [0:dPhi:2*pi-dPhi]';
+dPos_mm = [r1*sin(phi),r1*cos(phi);r2*sin(phi),r2*cos(phi)];
+figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
+
+
 %% save probe
-save('../../data/scanning/circular_FPM_5by5.mat','dPos_mm');
+save('../../data/scanning/circular_FPM.mat','dPos_mm');

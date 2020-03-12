@@ -318,7 +318,7 @@ classdef PIE_Analyze < mic.Base
             this.uieGlobalRot   = mic.ui.common.Edit('cLabel', 'CCD Rot (deg)', 'cType', 'd');
             this.uieDetSize     = mic.ui.common.Edit('cLabel', 'Dt. Size (mm)', 'cType', 'd','fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieCenterObstruction     = mic.ui.common.Edit('cLabel', 'Central.Obs', 'cType', 'd');
-            this.uieBinning     = mic.ui.common.Edit('cLabel', 'Binning', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieBinning     = mic.ui.common.Edit('cLabel', 'Binning', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             
             
             this.uieLambda.set(13.5);
@@ -587,17 +587,20 @@ classdef PIE_Analyze < mic.Base
                     catch
                     end
                 case this.uieBinning
-                    N = this.uieBinning.get();
-                    this.uieRes.set(N);
-                    propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
-                    lambda_um   = this.uieLambda.get()/1000;
-                    z_um       = this.uiez2.get()*1000;
-                    detSize_um  = this.uieDetSize.get()*1000;
-                    this.dc_um = detSize_um/N;
-                    if strcmp(propagator,'fourier')
-                        this.do_um = lambda_um*z_um/N/this.dc_um;
-                    else
-                        this.do_um = this.dc_um; % object pixel pitch
+                    try
+                        N = this.uieBinning.get();
+                        this.uieRes.set(N);
+                        propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
+                        lambda_um   = this.uieLambda.get()/1000;
+                        z_um       = this.uiez2.get()*1000;
+                        detSize_um  = this.uieDetSize.get()*1000;
+                        this.dc_um = detSize_um/N;
+                        if strcmp(propagator,'fourier')
+                            this.do_um = lambda_um*z_um/N/this.dc_um;
+                        else
+                            this.do_um = this.dc_um; % object pixel pitch
+                        end
+                    catch
                     end
                     
                 case {this.uiez2, this.uieLambda, this.uieDetSize,this.uipPropagator}
@@ -706,12 +709,18 @@ classdef PIE_Analyze < mic.Base
                             
                         case 'mat'
                             load(filename);
-%                             try
+                            try
                                 this.dPos_mm = dPos_mm;
-                                N = sqrt(length(aerialImages));
+                                L = length(aerialImages);
+                                N = ceil(sqrt(L));
+                                if N^2>L
+                                    for i= L+1:N^2
+                                        aerialImages{i} = zeros(size(aerialImages{1}));
+                                    end
+                                end
                                 this.handleLoadData(reshape(aerialImages,N,N), {});
-%                             catch
-%                             end
+                            catch
+                            end
                     end
                     
                 case this.uibLoadSingleFromLog
@@ -896,7 +905,7 @@ classdef PIE_Analyze < mic.Base
                             load(filename);
                     end
                     this.dPos_mm = dPos_mm;
-                    this.uieScanSteps.set(sqrt(length(dPos_mm)));
+                    this.uieScanSteps.set(ceil(sqrt(length(dPos_mm))));
                     this.uieScanRange.set(max(dPos_mm(:))-min(dPos_mm(:)));
                     
                     % Make phase tab active:
@@ -1690,7 +1699,7 @@ classdef PIE_Analyze < mic.Base
             else
                 Rpix = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
             end
-            
+            nInt = size(this.dPos_mm,1);
 %             dPosShifts = eval(this.uiePhaseStepsSim.get());
 %             Rm = round(dPosShifts(:,1)*1000/do_um);
 %             Rn = round(dPosShifts(:,2)*1000/do_um);
@@ -1711,7 +1720,7 @@ classdef PIE_Analyze < mic.Base
             sqrtInt  = single(zeros(N,N,scanSteps^2));
             Is = 0;
             ceInts = this.ceInt(:);
-            for j =1:scanSteps^2
+            for j =1:nInt
                 sqrtInt(:,:,j)=sqrt(ceInts{j});
                 Is = Is + ceInts{j};
             end
@@ -1720,7 +1729,7 @@ classdef PIE_Analyze < mic.Base
             Iseg = zeros(length(this.ceSegments),scanSteps^2);
             if ~isempty(this.ceSegments)
                 for k =1:length(this.ceSegments)
-                        for j =1:scanSteps^2
+                        for j =1:nInt
                             Iseg(k,j) = mean ( ceInts{j}(this.ceSegments{k}==1));
                         end
                     totalI = totalI+mean(Is(this.ceSegments{k}==1));
@@ -1746,7 +1755,7 @@ classdef PIE_Analyze < mic.Base
                     tempError = 0;
                     switch cAnalysisDomain % reconstruction method
                         case 'rPIE' % scanning solution
-                            for j =1:scanSteps^2
+                            for j =1:nInt
                                 if correctPos==1 % apply position correction
                                     if i==1 % inital parameters
                                         Cpix = zeros(scanSteps^2,2);
@@ -1845,7 +1854,7 @@ classdef PIE_Analyze < mic.Base
                         gpuSqrtInt = gpuArray(sqrtInt);
                         for i =1:iteration
                             tempError = 0;
-                            for j =1: scanSteps^2
+                            for j =1: nInt
                                 reconBox = gpuObject(Rpix(j,1)+[1:N],Rpix(j,2)+[1:N]);
                                 exitWave = reconBox.*gpuProbe;
                                 detectorWave = PIE.utils.postPropagate (exitWave,propagator,H,1);
@@ -2730,13 +2739,15 @@ classdef PIE_Analyze < mic.Base
                             xo_mm = linspace(-L/2,L/2,L)*this.do_um/1000; % object coordinates
                             yo_mm = linspace(-K/2,K/2,K)*this.do_um/1000; % object coordinates
                         end
+                        object_pha = atan2(imag(object),real(object));
+%                         object_pha = unwrap(unwrap(object_pha,[],1),[],2);
                         imagesc(this.haReconProbeAmp, xp_mm,xp_mm,abs(this.dProbeRecon(:,:,u8ModeId)));colorbar(this.haReconProbeAmp);axis(this.haReconProbeAmp,'xy');
                         this.haReconProbeAmp.Title.String = 'Reconstructed probe amplitude';this.haReconProbeAmp.XLabel.String = 'mm';this.haReconProbeAmp.YLabel.String = 'mm';
                         imagesc(this.haReconProbePha, xp_mm,xp_mm,atan2(imag(this.dProbeRecon(:,:,u8ModeId)),real(this.dProbeRecon(:,:,u8ModeId))));colorbar(this.haReconProbePha);axis(this.haReconProbePha,'xy');
                         this.haReconProbePha.Title.String = 'Reconstructed probe phase';this.haReconProbePha.XLabel.String = 'mm';this.haReconProbePha.YLabel.String = 'mm';
                         imagesc(this.haReconObjectAmp, xo_mm,yo_mm,abs(object));colorbar(this.haReconObjectAmp);axis(this.haReconObjectAmp,'xy');
                         this.haReconObjectAmp.Title.String = 'Reconstructed object amplitude';this.haReconObjectAmp.XLabel.String = 'mm';this.haReconObjectAmp.YLabel.String = 'mm';
-                        imagesc(this.haReconObjectPha, xo_mm,yo_mm,atan2(imag(object),real(object)));colorbar(this.haReconObjectPha);axis(this.haReconObjectPha,'xy');
+                        imagesc(this.haReconObjectPha, xo_mm,yo_mm,object_pha);colorbar(this.haReconObjectPha);axis(this.haReconObjectPha,'xy');
                         this.haReconObjectPha.Title.String = 'Reconstructed object phase';this.haReconObjectPha.XLabel.String = 'mm';this.haReconObjectPha.YLabel.String = 'mm';
                         drawnow;
                         
