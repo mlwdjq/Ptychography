@@ -2771,14 +2771,14 @@ classdef PIE_Analyze < mic.Base
                             else
                                 hold( this.haAnalysis,'off');
                                 h = plot3(this.haAnalysis,this.dPos_mm(:,3),this.dPos_mm(:,2),this.dPos_mm(:,1),'.');
-                                axis(this.haAnalysis,'xy','square','tight');
+                                axis(this.haAnalysis,'xy','equal','tight');
                                 set(h,'MarkerSize',20);
                                 this.haAnalysis.Title.String = selectedObject;
                                 this.haAnalysis.FontSize = 12;
                                 this.haAnalysis.XLabel.String = 'mm';this.haAnalysis.YLabel.String = 'mm';this.haAnalysis.ZLabel.String = 'mm';
                                 if ~isempty(dMetaFlags)
                                     hold( this.haAnalysis,'on');
-                                    hs = plot3(this.haAnalysis,this.dPos_mm(dMetaFlags,3),this.dPos_mm(dMetaFlags,2),this.dPos_mm(dMetaFlags,1),'.');
+                                    hs = plot(this.haAnalysis,this.dPos_mm(dMetaFlags,2),this.dPos_mm(dMetaFlags,2),this.dPos_mm(dMetaFlags,1),'.');
                                     set(hs,'MarkerSize',40);
                                     hold( this.haAnalysis,'on');
                                 end

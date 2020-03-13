@@ -19,7 +19,7 @@ dc_um = det_um/Nc; % detector size
 
 domain_nm = 450; % near field z 
 t_abs_nm =60; % absorber thickness
-method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
+method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);

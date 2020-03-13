@@ -70,12 +70,13 @@ while r<scanningRange_mm/sqrt(2)
     dPos_mm = [dPos_mm;[y;x]'];
     r = r+dr;
 end
+dPos_mm0 =dPos_mm;
+dzs_mmones(size(dPos_mm,1),1)*dz_mm
+dPos_mm(:,3)=dz_mm;
 
 dPos_mm(N^2+1:end,:)=[];
-dzs_mm = ones(size(dPos_mm,1),1)*dz_mm;
-dPos_mm=[[dPos_mm;dPos_mm;dPos_mm],dzs_mm(:)];
-
-figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
+length(dPos_mm)
+figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
 
 %% save probe
-save('../../data/scanning/circular_3D.mat','dPos_mm');
+save('../../data/scanning/circular_FPM.mat','dPos_mm');
