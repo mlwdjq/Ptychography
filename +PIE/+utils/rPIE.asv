@@ -43,11 +43,6 @@ if FP==0 || nargin<17
         denomP = gamma*max(max(abs(reconBox).^2)) + (1-gamma).*abs(reconBox).^2;
         dProbeRecon = dProbeRecon + beta*conj(reconBox).*(exitWaveNew-exitWave)./denomP;
         dObjectRecon(Rpix(1)+[1:N],Rpix(2)+[1:N],:) = newReconBox;
-        if size(Rpix,2)==3 % 3D scanning
-            for m=1:modeNumber
-                dProbeRecon(:,:,m) = PIE.utils.Propagate(dProbeRecon(:,:,m),'angular spectrum',do_um,lambda_um,-Rpix(3)*1000);
-            end
-        end
         tempError = tempError + abs(sqrtInt-sqrt(sum(abs(detectorWave).^2,3))).^2;
     end
 else

@@ -1036,7 +1036,7 @@ classdef PIE_Analyze < mic.Base
                         K = max(dPosShifts(:,1))+N;
                         L = max(dPosShifts(:,2))+N;
                     else
-                        dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+                        dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
                         K = max(dPosShifts(:,1))+N;
                         L = max(dPosShifts(:,2))+N;
                     end
@@ -1402,7 +1402,7 @@ classdef PIE_Analyze < mic.Base
                 K = max(dPosShifts(:,1))+N;
                 L = max(dPosShifts(:,2))+N;
             else
-                dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+                dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
                 K = max(dPosShifts(:,1))+N;
                 L = max(dPosShifts(:,2))+N;
             end
@@ -1697,7 +1697,10 @@ classdef PIE_Analyze < mic.Base
                 Rpix = round(Rpix);
                 [K,L] = size(this.dObjectGuess);
             else
-                Rpix = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+                Rpix = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
+            end
+            if size(this.dPos_mm,2) ==3
+                Rpix(:,3) = this.dPos_mm(:,3);
             end
             nInt = size(this.dPos_mm,1);
 %             dPosShifts = eval(this.uiePhaseStepsSim.get());
@@ -1778,7 +1781,7 @@ classdef PIE_Analyze < mic.Base
                                             sqrtInt(:,:,j),Iseg(:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError,this.ceSegments);
                                     else
                                         [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
-                                            sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError, modeNumber,FP,this.dCTF);
+                                            sqrtInt(:,:,j),Rpix(j,:),N,propagator,H,Hm,alpha,beta, gamma, tempError, modeNumber,this.do_um,this.dc_um,lambda_um,FP,this.dCTF);
                                     end
                                 end
                                 drawnow;
@@ -2223,23 +2226,40 @@ classdef PIE_Analyze < mic.Base
                 dPosShifts = round(dPosShifts);
                 [K,L] = size(this.dObject);
             else
-                dPosShifts = round((this.dPos_mm-min(this.dPos_mm,[],1))*1000/this.do_um);
+                dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
             end
             if lComputePSStack % True if simulating "stack"
                 this.uipbExposureProgress.set(0);
                 nSteps = length(dPosShifts);
-                simInts = cell(nSteps, 1);
-
-                for m = 1:nSteps
-                    sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
-                            propagator,[dPosShifts(m,1),dPosShifts(m,2)],H,1);
+                nStep2 = ceil(sqrt(nSteps))^2;
+                simInts = cell(nStep2, 1);
+                if size(this.dPos_mm,2) ==3
+                    dPosShifts(:,3) = this.dPos_mm(:,3);
+                    for m = 1:nSteps
+                        sqrtInt = PIE.utils.simulateDiffractionPattern3D(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
+                            propagator,dPosShifts(m,:),H,1,this.do_um,this.dc_um,lambda_um);
                         % add systematic error
                         Int = sqrtInt.^2;
                         simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
                         this.uipbExposureProgress.set(m/nSteps);
+                    end
+                    for m = nSteps+1:nStep2
+                        simInts{m} = zeros(N);
+                    end
+                else
+                    for m = 1:nSteps
+                        sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
+                            propagator,dPosShifts(m,:),H,1);
+                        % add systematic error
+                        Int = sqrtInt.^2;
+                        simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
+                        this.uipbExposureProgress.set(m/nSteps);
+                    end
+                    for m = nSteps+1:nStep2
+                        simInts{m} = zeros(N);
+                    end
                 end
-                
-                simInts =reshape(simInts,sqrt(nSteps),sqrt(nSteps));
+                simInts =reshape(simInts,sqrt(nStep2),sqrt(nStep2));
 
                 this.handleLoadData(simInts, {'sim'});
                 this.dAnalysisRegion(simInts{1,1}==0)=0;
@@ -2249,8 +2269,7 @@ classdef PIE_Analyze < mic.Base
                 tic
                 %
                 sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,...
-                    this.ceSegments,modeNumber,N,propagator,[round(scanRange_um/this.do_um/2),...
-                    round(scanRange_um/this.do_um/2)],H,1);
+                    this.ceSegments,modeNumber,N,propagator,dPosShifts(1,1:2),H,1);
                 % add systematic error
                 Int = sqrtInt.^2;
                 Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);

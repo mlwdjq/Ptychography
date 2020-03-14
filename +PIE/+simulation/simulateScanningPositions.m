@@ -53,8 +53,8 @@ figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
 
 %% 3D circular scanning
 N= 5;
-dz_mm = [-0.5,0,0.5]; 
-scanningRange_mm = 4;
+dz_mm = [-0.01,0,0.01]; 
+scanningRange_mm = 0.0002;
 dr = scanningRange_mm / (N-1);
 dPos_mm = [0,0];
 r=dr;
@@ -78,4 +78,4 @@ dPos_mm=[[dPos_mm;dPos_mm;dPos_mm],dzs_mm(:)];
 figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
 
 %% save probe
-save('../../data/scanning/circular_3D.mat','dPos_mm');
+save('../../data/scanning/circular_3D_seg.mat','dPos_mm');
