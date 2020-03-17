@@ -52,13 +52,13 @@ dPos_mm = [r1*sin(phi),r1*cos(phi);r2*sin(phi),r2*cos(phi)];
 figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
 
 %% 3D circular scanning
-N= 5;
-dz_mm = [-0.01,0,0.01]; 
+N= 9;
+dz_mm = [-0.004,0,0.004]; 
 scanningRange_mm = 0.0002;
 dr = scanningRange_mm / (N-1);
 dPos_mm = [0,0];
 r=dr;
-ds= dr/1.3;
+ds= dr/1.2;
 while r<scanningRange_mm/sqrt(2)
     ns = round(2*pi*r/ds);
     theta = 0:2*pi/ns:2*pi*(1-1/ns);
@@ -71,11 +71,11 @@ while r<scanningRange_mm/sqrt(2)
     r = r+dr;
 end
 
-dPos_mm(N^2+1:end,:)=[];
+% dPos_mm(N^2+1:end,:)=[];
 dzs_mm = ones(size(dPos_mm,1),1)*dz_mm;
 dPos_mm=[[dPos_mm;dPos_mm;dPos_mm],dzs_mm(:)];
 
 figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
 
 %% save probe
-save('../../data/scanning/circular_3D_seg.mat','dPos_mm');
+save('../../data/scanning/circular_3D_seg_2.mat','dPos_mm');

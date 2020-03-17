@@ -1,9 +1,12 @@
 function [sqrtInt,Em,measurements] = simulateDiffractionPattern(probe,object,...
-    segs,modeNumber,N,propagator,Rpix,H,preShift)
+    segs,modeNumber,N,propagator,Rpix,H,preShift,do_um,lambda_um)
 %% simulate diffracted patterns
 Em = zeros(N,N,modeNumber);
 for m= 1:modeNumber
     reconBox = object(Rpix(1)+[1:N],Rpix(2)+[1:N],m);
+    if size(Rpix,2)==3
+        probe(:,:,m) = PIE.utils.Propagate(probe(:,:,m),'angular spectrum',do_um,lambda_um,Rpix(3));
+    end
     exitWave = reconBox.*probe(:,:,m);
     Em(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,preShift);
     sqrtInt = single(abs(Em));

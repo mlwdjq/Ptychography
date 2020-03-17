@@ -6,8 +6,8 @@ for m= 1:modeNumber
     reconBox = object(Rpix(1)+[1:N],Rpix(2)+[1:N],m);
     probeTemp = PIE.utils.Propagate(probe(:,:,m),'angular spectrum',do_um,lambda_um,Rpix(3)*1000);
     exitWave = reconBox.*probeTemp;
-    EmTemp = PIE.utils.postPropagate (exitWave,propagator,H,preShift);
-    Em(:,:,m) = PIE.utils.Propagate(EmTemp,'angular spectrum',dc_um,lambda_um,-Rpix(3)*1000);
+    Em(:,:,m) = PIE.utils.postPropagate (exitWave,propagator,H,preShift);
+%     Em(:,:,m) = PIE.utils.Propagate(EmTemp,'angular spectrum',dc_um,lambda_um,-Rpix(3)*1000);
     sqrtInt = single(abs(Em));
     measurements = sqrtInt.^2;
 end
