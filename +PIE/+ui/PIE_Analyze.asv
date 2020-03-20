@@ -532,7 +532,7 @@ classdef PIE_Analyze < mic.Base
                 {'Entire region','Compute from scanning positions','Compute from probe diameter'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibAnalyze        = mic.ui.common.Button('cText', 'Analyze', 'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uibDataCursor        = mic.ui.common.Toggle('cTextFalse', 'Data cursor off','cTextTrue', 'Data cursor on', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uibAnalyze        = mic.ui.common.Button('cText', 'uibDataCursor', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieSigma = mic.ui.common.Edit('cLabel', 'Sigma filter', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieSigma.set(0);
             
@@ -1228,12 +1228,6 @@ classdef PIE_Analyze < mic.Base
                 case this.uibAnalyze
                     this.analyze();
                     
-                case this.uibDataCursor
-                    if this.uibDataCursor.get()
-                        datacursormode(this.hFigure,'on');
-                    else
-                        datacursormode(this.hFigure,'off');
-                    end
                     
                     %% Other
                 case this.htLog
@@ -3261,7 +3255,6 @@ classdef PIE_Analyze < mic.Base
             this.uipSelectObject.build     (this.hpAnalysis, 20, 20, 180, 20);
             this.uipSelectRegion.build       (this.hpAnalysis, 20, 70, 180, 20);
             this.uibAnalyze.build   (this.hpAnalysis, 415, 140, 160, 20);
-            this.uibDataCursor.build   (this.hpAnalysis, 415, 20, 160, 20);
             this.uieSigma.build   (this.hpAnalysis, 220, 20, 80, 20);
             
             % Set hsa offset:
