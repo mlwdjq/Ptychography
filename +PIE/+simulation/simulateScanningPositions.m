@@ -46,9 +46,10 @@ figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
 %% segment scanning
 r1 = 0.1043;
 r2 = 0.2141;
-dPhi =pi/8;
+dPhi =pi/4;
 phi = [0:dPhi:2*pi-dPhi]';
-dPos_mm = [r1*sin(phi),r1*cos(phi);r2*sin(phi),r2*cos(phi)];
+offset = 3*tan(6/180*pi);
+dPos_mm = [r1*sin(phi),r1*cos(phi)+offset;r2*sin(phi),r2*cos(phi)+offset];
 figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');
 
 %% 3D circular scanning
@@ -78,4 +79,4 @@ dPos_mm=[[dPos_mm;dPos_mm;dPos_mm],dzs_mm(:)];
 figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
 
 %% save probe
-save('../../data/scanning/circular_3D_seg_2.mat','dPos_mm');
+save('../../data/scanning/FPM_seg16_offset.mat','dPos_mm');

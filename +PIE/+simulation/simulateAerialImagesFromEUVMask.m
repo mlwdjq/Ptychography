@@ -16,7 +16,7 @@ det_um = pie.uieDetSize.get()*1000; % detector size
 N = length(pie.dObject); % sampling
 Nc = pie.uieRes.get(); % sampling
 dc_um = det_um/Nc; % detector size
-
+offsetAngle = 6;
 domain_nm = 450; % near field z 
 t_abs_nm =60; % absorber thickness
 method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
@@ -56,7 +56,7 @@ dPos = -scanRange_um/2:scanRange_um/(scanSteps-1):scanRange_um/2;
 [dm,dn] = meshgrid(dPos,dPos);
 dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
-load([pie.cAppPath,'\..\..\data\scanning\circular_FPM_seg16.mat']);
+load([pie.cAppPath,'\..\..\data\scanning\FPM_seg16_offset.mat']);
 nInt = size(dPos_mm,1);
 theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
 phi = atan2(-dPos_mm(:,2),-dPos_mm(:,1))/pi*180; % illumination azimuthes
@@ -75,8 +75,8 @@ aerialImages = cell(nInt,1);
 
 %% run simulator using TEMPEST
 for i=1: nInt
-        setVariableValues( 'theta',dA(i,1));
-        setVariableValues( 'phi',dA(i,2));
+        setVariableValues( 'theta',dA(i,1));%
+        setVariableValues( 'phi',dA(i,2));%
         [~,~,~,Ex_amp(:,:,i),Ex_pha(:,:,i),Ey_amp(:,:,i),Ey_pha(:,:,i)] = PIE.utils.runSimulator(polarDire,method);
         %         pha_near =PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(pha_near,255*ones(N));
 end
@@ -90,15 +90,15 @@ for i=1: nInt
                 Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
                 total = sum(abs(Ex(:)).^2);
                 Ex = Ex/sqrt(total);
-                aerialImages{i}=  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+                aerialImages{i}=  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             case 'TEMPESTpr2'
                 Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
                 Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i));
 %                 total = sum(abs(Ex(:)).^2)+sum(abs(Ey(:)).^2);
 %                 Ex = Ex/sqrt(total);
 %                 Ey = Ey/sqrt(total);
-                aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
-                aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc);
+                aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
+                aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
                 aerialImages{i}= aerialImagesx+aerialImagesy;
         end
         if max(max(abs(aerialImages{i})))>maxInt

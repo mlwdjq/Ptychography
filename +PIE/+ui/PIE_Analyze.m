@@ -1015,6 +1015,12 @@ classdef PIE_Analyze < mic.Base
                     FP = this.uicbFourierPtychography.get();
                     z_um       = this.uiez2.get()*1000;
                     scanRange_um  = this.uieScanRange.get()*1000;
+                    probeOffset = eval(this.uieProbeOffset.get());
+                    if isempty(probeOffset)
+                        probeOffset=[0,0];
+                    else
+                        probeOffset=round(probeOffset*1000./this.do_um);
+                    end
                     propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
                     u8ModeId = this.uilSelectMode.getSelectedIndexes();
                     modeNumber = this.uieModeNumber.get();
@@ -1050,6 +1056,7 @@ classdef PIE_Analyze < mic.Base
                     object = interp2(p,q,object,m,n,'nearest');
                     if FP
                         object =  PIE.utils.Propagate (object,propagator,this.do_um,lambda_um,-1);
+                        object = circshift(object,[probeOffset(2), probeOffset(1)]);
                     end
                     initialGuess = this.uicbGuess.get();
                     if initialGuess
@@ -1316,6 +1323,7 @@ classdef PIE_Analyze < mic.Base
                     case 'From reconstruction'
                         probe = this.dProbeRecon;
                 end
+                probe = circshift(probe,[probeOffset(2), probeOffset(1)]);
             else % define probe in pupil space for fourier ptychography
                 samplingFactor_obj = lambda_um.*z_um/(N*this.dc_um*this.do_um);
                 Rprobe_um = z_um*tan(asin(NA));
@@ -1326,6 +1334,7 @@ classdef PIE_Analyze < mic.Base
                 kr = sqrt(kxm.^2+kym.^2);
                 phi = atan2(kym,kxm);
                 this.dCTF = (kr<cutoff);
+                this.dCTF = circshift(this.dCTF,[probeOffset(2), probeOffset(1)]);
                 NAo = this.uieNAo.get();
                 kzm = sqrt(k0^2-(kxm/NA*NAo).^2-(kym/NA*NAo).^2);
                 defocus_pha = exp(1i.*df_um.*real(kzm)).*exp(abs(df_um).*abs(imag(kzm)));
@@ -1344,7 +1353,6 @@ classdef PIE_Analyze < mic.Base
 %                 kz = 2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
 %                 defocus_pha = df_um.*real(kz);
             end
-            probe = circshift(probe,[probeOffset(2), probeOffset(1)]);
             if initialGuess
                 if u8ModeId==1
                     this.dProbeGuess = single(probe);
@@ -1451,6 +1459,7 @@ classdef PIE_Analyze < mic.Base
             end
             if FP
                 object =  PIE.utils.Propagate (object,propagator,this.do_um,lambda_um,-1);
+                object = circshift(object,[probeOffset(2), probeOffset(1)]);
             end
             
             if initialGuess
@@ -2806,6 +2815,7 @@ classdef PIE_Analyze < mic.Base
                         else
                             u8ModeId = this.uilSelectMode.getSelectedIndexes();
                             object = this.dSelectedObject(:,:,u8ModeId);
+%                             object = unwrap(unwrap(object,[],1),[],2);
                             [K,L] = size(object);
                             x_mm = this.dUnit_mm*linspace(-L/2,L/2,L);
                             y_mm = this.dUnit_mm*linspace(-K/2,K/2,K);
