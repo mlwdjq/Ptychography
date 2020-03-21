@@ -908,7 +908,7 @@ classdef PIE_Analyze < mic.Base
                     end
                     this.dPos_mm = dPos_mm;
                     this.uieScanSteps.set(ceil(sqrt(size(dPos_mm,1))));
-                    this.uieScanRange.set(max(max(dPos_mm(:,1:2)))-min(min(dPos_mm(:,1:2))));
+                    this.uieScanRange.set(max(max(dPos_mm(:,1:2),[],1)-min(dPos_mm(:,1:2),[],1)));
                     
                     % Make phase tab active:
                     this.uitgAxesDisplay.selectTabByIndex(this.U8ANALYSIS);
@@ -2030,6 +2030,12 @@ classdef PIE_Analyze < mic.Base
                 case 'Object phase difference'
                     this.dSelectedObject = atan2(imag(objectRecon),real(objectRecon))-...
                         atan2(imag(objectOri),real(objectOri));
+                    s=objectRecon./objectOri;
+                    this.dSelectedObject = atan2(imag(s),real(s));
+                    this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+1.2)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+1.2)+2*pi;
+                    this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
+                    %                     this.dSelectedObject = PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(atan2(imag(objectRecon),real(objectRecon)),255*ones(size(objectRecon)))-...
+%                         PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(atan2(imag(objectOri),real(objectOri)),255*ones(size(objectOri)));
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2823,7 +2829,8 @@ classdef PIE_Analyze < mic.Base
                         else
                             u8ModeId = this.uilSelectMode.getSelectedIndexes();
                             object = this.dSelectedObject(:,:,u8ModeId);
-%                             object = unwrap(unwrap(object,[],1),[],2);
+                            % %                             object = unwrap(unwrap(object,[],1),[],2);
+%                             object=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(object,255*ones(size(object)));
                             [K,L] = size(object);
                             x_mm = this.dUnit_mm*linspace(-L/2,L/2,L);
                             y_mm = this.dUnit_mm*linspace(-K/2,K/2,K);

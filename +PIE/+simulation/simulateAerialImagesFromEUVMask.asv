@@ -18,7 +18,7 @@ Nc = pie.uieRes.get(); % sampling
 dc_um = det_um/Nc; % detector size
 offsetAngle = 6;
 domain_nm = 450; % near field z
-t_abs_nm =60; % absorber thickness
+t_abs_nm =32; % absorber thickness
 method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
@@ -72,7 +72,7 @@ Ex_pha = zeros(N,N,nInt);
 Ey_amp = zeros(N,N,nInt);
 Ey_pha = zeros(N,N,nInt);
 aerialImages = cell(nInt,1);
-% dA=[6,-90];
+
 %% run simulator using TEMPEST
 for i=1: nInt
     setVariableValues( 'theta',dA(i,1));%
@@ -81,13 +81,12 @@ for i=1: nInt
     %         pha_near =PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(pha_near,255*ones(N));
 end
 
-
 %% generate aerial images
 maxInt = 0;
+df_um = 0; % defocus distance
 for i=1: nInt
     switch method
         case 'KirchhoffThin'
-            df_um = 0; % defocus distance
             %                 Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
             %                 total = sum(abs(Ex(:)).^2);
             %                 Ex = Ex/sqrt(total);
@@ -100,9 +99,7 @@ for i=1: nInt
             aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImages{i}= aerialImagesx+aerialImagesy;
-%             object = PIE.utils.Propagate (Ex,'angular spectrum',dx_nm/1000,lambda_um,df_um);break;
         case 'TEMPESTpr2'
-            df_um = 0.1; % defocus distance
             Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
             Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i));
             %                 total = sum(abs(Ex(:)).^2)+sum(abs(Ey(:)).^2);
@@ -111,9 +108,8 @@ for i=1: nInt
             aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImages{i}= aerialImagesx+aerialImagesy;
-%             object = PIE.utils.Propagate (Ey,'angular spectrum',dx_nm/1000,lambda_um,df_um);break;
     end
-%     imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
+    imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
     if max(max(abs(aerialImages{i})))>maxInt
         maxInt = max(max(aerialImages{i}));
     end
@@ -127,11 +123,11 @@ end
 if saveImage == 1
     mkdir(dataFile(1:end-4));
     for i= 1:nInt
-         imwrite(aerialImages{i}/maxInt,[dataFile(1:end-4),'\',num2str(i),'.bmp']);
+%         imwrite(aerialImages{i}/maxInt,[dataFile(1:end-4),'\',num2str(i),'.bmp']);
 %         aerialImagesScale{i} = aerialImages{i}/maxInt;
 %         aerialImagesScale{i} =aerialImages{i};
-%          imagesc(aerialImagesScale{i}-aerialImagesMo{i}),axis xy; colorbar;pause(0.5);
-%          imwrite(mat2gray(aerialImagesScale{i}-aerialImagesMo{i}),[dataFile(1:end-4),'\',num2str(i),'.bmp']);
+         imagesc(aerialImagesScale{i}-aerialImagesMo{i}),axis xy; colorbar;pause(0.5);
+         imwrite(aerialImagesScale{i}-aerialImagesMo{i}),[dataFile(1:end-4),'\',num2str(i),'.bmp']);
     end
 end
 
