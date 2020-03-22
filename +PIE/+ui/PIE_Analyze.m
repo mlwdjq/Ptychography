@@ -2028,16 +2028,14 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = this.do_um/1000;
                     end
                 case 'Object phase difference'
-                    this.dSelectedObject = atan2(imag(objectRecon),real(objectRecon))-...
-                        atan2(imag(objectOri),real(objectOri));
+%                     this.dSelectedObject = atan2(imag(objectRecon),real(objectRecon))-...
+%                         atan2(imag(objectOri),real(objectOri));
                     s=objectRecon./objectOri;
                     this.dSelectedObject = atan2(imag(s),real(s));
-                    dph = 2;
-                    %   this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
-                    this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
+                    dph = 1.2;
+%                     this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
+%                     this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
-                    %                     this.dSelectedObject = PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(atan2(imag(objectRecon),real(objectRecon)),255*ones(size(objectRecon)))-...
-%                         PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(atan2(imag(objectOri),real(objectOri)),255*ones(size(objectOri)));
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2051,8 +2049,11 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = this.do_um/1000;
                     end
                 case 'Probe phase difference'
-                    this.dSelectedObject = atan2(imag(probeRecon),real(probeRecon))-...
-                        atan2(imag(probeOri),real(probeOri));
+%                     this.dSelectedObject = atan2(imag(probeRecon),real(probeRecon))-...
+%                         atan2(imag(probeOri),real(probeOri));
+                    s=probeRecon./probeOri;
+                    this.dSelectedObject = atan2(imag(s),real(s));
+                    this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
