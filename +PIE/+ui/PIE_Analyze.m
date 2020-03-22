@@ -2032,7 +2032,9 @@ classdef PIE_Analyze < mic.Base
                         atan2(imag(objectOri),real(objectOri));
                     s=objectRecon./objectOri;
                     this.dSelectedObject = atan2(imag(s),real(s));
-                    this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+1.2)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+1.2)+2*pi;
+                    dph = 2;
+                    %   this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
+                    this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
                     %                     this.dSelectedObject = PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(atan2(imag(objectRecon),real(objectRecon)),255*ones(size(objectRecon)))-...
 %                         PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(atan2(imag(objectOri),real(objectOri)),255*ones(size(objectOri)));

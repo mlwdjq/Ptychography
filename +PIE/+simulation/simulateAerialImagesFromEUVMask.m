@@ -18,7 +18,7 @@ Nc = pie.uieRes.get(); % sampling
 dc_um = det_um/Nc; % detector size
 offsetAngle = 6;
 domain_nm = 450; % near field z
-t_abs_nm =60; % absorber thickness
+t_abs_nm =56; % absorber thickness
 method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
@@ -31,7 +31,8 @@ polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 saveConfig = 1; % save configuration
 saveData = 1; % save data
 saveImage = 1;
-
+normalIncidence = 1;% normal incident only
+filename = 'normalIncidence.mat';
 
 % frequently changed parameters
 para.domain= domain_nm;
@@ -67,12 +68,15 @@ dA = [theta(:),phi(:)];
 % ky2 = -sin(theta/180*pi).*cos(phi/180*pi);
 % [x,y] = meshgrid(linspace(-1,1,150));
 % pha = 2*pi*kx2(3).*x*25.49+2*pi*ky2(3).*y*25.49;
+if normalIncidence==1
+    dA=[6,-90];
+    nInt =1;
+end
 Ex_amp = zeros(N,N,nInt);
 Ex_pha = zeros(N,N,nInt);
 Ey_amp = zeros(N,N,nInt);
 Ey_pha = zeros(N,N,nInt);
 aerialImages = cell(nInt,1);
-% dA=[6,-90];
 %% run simulator using TEMPEST
 for i=1: nInt
     setVariableValues( 'theta',dA(i,1));%
@@ -100,7 +104,6 @@ for i=1: nInt
             aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImages{i}= aerialImagesx+aerialImagesy;
-%             object = PIE.utils.Propagate (Ex,'angular spectrum',dx_nm/1000,lambda_um,df_um);break;
         case 'TEMPESTpr2'
             df_um = 0.1; % defocus distance
             Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
@@ -111,12 +114,18 @@ for i=1: nInt
             aerialImagesx =  PIE.utils.getAerialImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImagesy =  PIE.utils.getAerialImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,offsetAngle);
             aerialImages{i}= aerialImagesx+aerialImagesy;
-%             object = PIE.utils.Propagate (Ey,'angular spectrum',dx_nm/1000,lambda_um,df_um);break;
     end
 %     imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
     if max(max(abs(aerialImages{i})))>maxInt
         maxInt = max(max(aerialImages{i}));
     end
+end
+
+%% save normal incidence object
+if normalIncidence==1
+    object = PIE.utils.Propagate (Ey,'angular spectrum',dx_nm/1000,lambda_um,df_um);
+    save(['D:\OneDrive\Ptychography\code\Ptychography\data\object\',filename],'object');
+    return;
 end
 
 %% save data
