@@ -28,8 +28,10 @@ switch propagator
         notEvanescent = imag(w)==0;
         % Compute FFT of input
         F = fftshift(fft2(fftshift(input)));
+        s = exp(2i*pi*z*w).*notEvanescent;
+        s(isnan(s)) = 0;
         % multiply FFT by phase-shift and inverse transform
-        output = ifftshift(ifft2(ifftshift(F.*exp(2i*pi*z*w).*notEvanescent)));
+        output = ifftshift(ifft2(ifftshift(F.*s)));
     case 'fresnel'
         % Calculate approx phase distribution for each plane wave component
         w = fx.^2 + fy.^2;

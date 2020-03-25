@@ -19,7 +19,7 @@ dc_um = det_um/Nc; % detector size
 offsetAngle = 6;
 domain_nm = 450; % near field z
 t_abs_nm =56; % absorber thickness
-method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
+method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
@@ -31,7 +31,7 @@ polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 saveConfig = 1; % save configuration
 saveData = 1; % save data
 saveImage = 1;
-normalIncidence = 1;% normal incident only
+normalIncidence = 0;% normal incident only
 filename = 'normalIncidence.mat';
 
 % frequently changed parameters
@@ -57,7 +57,7 @@ dPos = -scanRange_um/2:scanRange_um/(scanSteps-1):scanRange_um/2;
 [dm,dn] = meshgrid(dPos,dPos);
 dPos_um  = [dm(:),dn(:)];
 dPos_mm = dPos_um/1000;
-load([pie.cAppPath,'\..\..\data\scanning\FPM_seg16_offset.mat']);
+load([pie.cAppPath,'\..\..\data\scanning\CircularRoundOffsetScanningSeg16.mat']);
 nInt = size(dPos_mm,1);
 theta= atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/(Lo_um/1000))/pi*180; % illumination angles
 phi = atan2(-dPos_mm(:,2),-dPos_mm(:,1))/pi*180; % illumination azimuthes

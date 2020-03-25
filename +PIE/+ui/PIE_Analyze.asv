@@ -266,7 +266,7 @@ classdef PIE_Analyze < mic.Base
         
         % Controls: Reconstruction: RAAR
         uieDelta
-
+        
         % Controls: Reconstruction: WDD
         uieEpsilon
         
@@ -445,7 +445,7 @@ classdef PIE_Analyze < mic.Base
             this.uieLo.set(3);
             
             this.uieScanAngles  = mic.ui.common.Edit('cLabel', 'Scanning angles', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-%             dL = this.uieScanRange.get();
+            %             dL = this.uieScanRange.get();
             Lo_mm = this.uieLo.get();
             this.uieMag.set(1);
             dA =atan(eval(this.uiePhaseStepsSim.get())/Lo_mm)/pi*180;
@@ -1350,16 +1350,16 @@ classdef PIE_Analyze < mic.Base
                 probe = this.dCTF.*exp(1i*probe_pha).*defocus_pha;
                 
                 %                 [xp_um,yp_um] = meshgrid(linspace(-do_um*N/2,do_um*N/2,N));
-%                 Lo_um = this.uieLo.get()*1000;
-%                 NAo = this.uieNAo.get();
-%                 probe_amp = zeros(N);
-%                 probe_amp((xp_um.^2+yp_um.^2<= Rprobe_um.^2)&(xp_um.^2+yp_um.^2> (Rprobe_um*CenterObstruction).^2)) = 1;
-%                 kr = sin(atan(sqrt(xp_um.^2+yp_um.^2)/Lo_um));
-%                 phi = atan2(yp_um,xp_um);
-%                 kx = kr.*cos(phi);
-%                 ky = kr.*sin(phi);
-%                 kz = 2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
-%                 defocus_pha = df_um.*real(kz);
+                %                 Lo_um = this.uieLo.get()*1000;
+                %                 NAo = this.uieNAo.get();
+                %                 probe_amp = zeros(N);
+                %                 probe_amp((xp_um.^2+yp_um.^2<= Rprobe_um.^2)&(xp_um.^2+yp_um.^2> (Rprobe_um*CenterObstruction).^2)) = 1;
+                %                 kr = sin(atan(sqrt(xp_um.^2+yp_um.^2)/Lo_um));
+                %                 phi = atan2(yp_um,xp_um);
+                %                 kx = kr.*cos(phi);
+                %                 ky = kr.*sin(phi);
+                %                 kz = 2*pi/lambda_um*sqrt(1-kx.^2-ky.^2);
+                %                 defocus_pha = df_um.*real(kz);
             end
             if initialGuess
                 if u8ModeId==1
@@ -1380,31 +1380,34 @@ classdef PIE_Analyze < mic.Base
                     this.dProbe(:,:,u8ModeId) = single(probe);
                 end
             end
-            try
-                if samplingFactor_obj>1
-                    fprintf('Please adjust configurations for propagation sampling\n');
-                end
-                airyR_um = 0.61*lambda_um/this.uieNA.get();
-                
-                if ~isempty(this.ceSegments)
-                    NSeg = length(this.ceSegments);
-                    segFactor = sqrt(NSeg)/N;
-                else
-                    segFactor = 1;
-                end
-                Nz = length(unique(this.dPos_mm(:,3)));
-                if Rprobe_um> airyR_um
-                    overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
-                    samplingFactor = 2*Rprobe_um/dR*segFactor*Nz;
-                else
-                    overlap = PIE.utils.overlapRatio(airyR_um,dR); % overlap ratio of two circles
-                    samplingFactor = 2*airyR_um/dR*segFactor*Nz;
-                end
-                this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
-                
-                this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
-            catch
+            
+            if samplingFactor_obj>1
+                fprintf('Please adjust configurations for propagation sampling\n');
             end
+            airyR_um = 0.61*lambda_um/this.uieNA.get();
+            
+            if ~isempty(this.ceSegments)
+                NSeg = length(this.ceSegments);
+                segFactor = sqrt(NSeg)/N;
+            else
+                segFactor = 1;
+            end
+            if size(this.dPos_mm,2)==3
+                Nz = length(unique(this.dPos_mm(:,3)));
+            else
+                Nz=1;
+            end
+            if Rprobe_um> airyR_um
+                overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
+                samplingFactor = 2*Rprobe_um/dR*segFactor*Nz;
+            else
+                overlap = PIE.utils.overlapRatio(airyR_um,dR); % overlap ratio of two circles
+                samplingFactor = 2*airyR_um/dR*segFactor*Nz;
+            end
+            this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
+            
+            this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
+            
             %% initial object
             if FP
                 k0 = 2*pi/lambda_um;
@@ -1423,8 +1426,8 @@ classdef PIE_Analyze < mic.Base
                 K = max(dPosShifts(:,1))+N;
                 L = max(dPosShifts(:,2))+N;
             end
-%             K = round(scanRange_um/this.do_um)+N;
-%             L = round(scanRange_um/this.do_um)+N; % size of object [K,L]
+            %             K = round(scanRange_um/this.do_um)+N;
+            %             L = round(scanRange_um/this.do_um)+N; % size of object [K,L]
             if round(scanRange_um/this.do_um)<scanSteps
                 this.uitSampling.set(['Over scanning ',num2str(round(scanRange_um/this.do_um))]); % check sampling
             end
@@ -1697,7 +1700,7 @@ classdef PIE_Analyze < mic.Base
             modeNumber = this.uieModeNumber.get();
             N = length(this.ceInt{1,1});
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
-
+            
             % precompute FFT
             H = PIE.utils.prePropagate (this.dProbeGuess,propagator,this.do_um,lambda_um,z_um,1);
             Hm = PIE.utils.prePropagate (this.dProbeGuess,propagator,this.do_um,lambda_um,-z_um,1);
@@ -1705,7 +1708,7 @@ classdef PIE_Analyze < mic.Base
             % generate scanning coordinates
             if FP
                 k0 = 2*pi/lambda_um;
-%                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
                 kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
                 phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
@@ -1713,7 +1716,7 @@ classdef PIE_Analyze < mic.Base
                 Rpix = kxy./dkxy;
                 Rpix = Rpix -min(Rpix,[],1);
                 Rpix = round(Rpix);
-%                 [K,L] = size(this.dObjectGuess);
+                %                 [K,L] = size(this.dObjectGuess);
             else
                 Rpix = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
             end
@@ -1723,12 +1726,12 @@ classdef PIE_Analyze < mic.Base
                 fprintf('Maximum propagation distance for 3-D scanning is %0.5f, while the input is %0.5f \n',zMax,abs(max(Rpix(:,3))));
             end
             nInt = size(this.dPos_mm,1);
-%             dPosShifts = eval(this.uiePhaseStepsSim.get());
-%             Rm = round(dPosShifts(:,1)*1000/do_um);
-%             Rn = round(dPosShifts(:,2)*1000/do_um);
+            %             dPosShifts = eval(this.uiePhaseStepsSim.get());
+            %             Rm = round(dPosShifts(:,1)*1000/do_um);
+            %             Rn = round(dPosShifts(:,2)*1000/do_um);
             
             % generate scanning position
- 
+            
             if isempty(this.dProbeGuess)
                 this.dProbeGuess = pinhole(round(N/2),N,N);
             end
@@ -1747,14 +1750,14 @@ classdef PIE_Analyze < mic.Base
                 sqrtInt(:,:,j)=sqrt(ceInts{j});
                 Is = Is + ceInts{j};
             end
-
+            
             totalI =0;
             Iseg = zeros(length(this.ceSegments),scanSteps^2);
             if ~isempty(this.ceSegments)
                 for k =1:length(this.ceSegments)
-                        for j =1:nInt
-                            Iseg(k,j) = mean ( ceInts{j}(this.ceSegments{k}==1));
-                        end
+                    for j =1:nInt
+                        Iseg(k,j) = mean ( ceInts{j}(this.ceSegments{k}==1));
+                    end
                     totalI = totalI+mean(Is(this.ceSegments{k}==1));
                 end
             else
@@ -1934,7 +1937,7 @@ classdef PIE_Analyze < mic.Base
             df_um       = this.uiez1.get()*1000;% negative sign corresponds convergent
             z_um       = this.uiez2.get()*1000;
             Magnification = this.uieMag.get();
-
+            
             % calculate probe radius
             if ~FP
                 switch probeType
@@ -2028,13 +2031,13 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = this.do_um/1000;
                     end
                 case 'Object phase difference'
-%                     this.dSelectedObject = atan2(imag(objectRecon),real(objectRecon))-...
-%                         atan2(imag(objectOri),real(objectOri));
+                    %                     this.dSelectedObject = atan2(imag(objectRecon),real(objectRecon))-...
+                    %                         atan2(imag(objectOri),real(objectOri));
                     s=objectRecon./objectOri;
                     this.dSelectedObject = atan2(imag(s),real(s));
                     dph = 1.2;
-%                     this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
-%                     this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
+                    %                     this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
+                    %                     this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
@@ -2049,10 +2052,11 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = this.do_um/1000;
                     end
                 case 'Probe phase difference'
-                    this.dSelectedObject = atan2(imag(probeRecon),real(probeRecon))-...
-                        atan2(imag(probeOri),real(probeOri));
-                    s=probeRecon./objectOri;
+                    %                     this.dSelectedObject = atan2(imag(probeRecon),real(probeRecon))-...
+                    %                         atan2(imag(probeOri),real(probeOri));
+                    s=probeRecon./probeOri;
                     this.dSelectedObject = atan2(imag(s),real(s));
+                    this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2223,7 +2227,7 @@ classdef PIE_Analyze < mic.Base
             
             
             % Generate diffraction patterns:
-%             scanRange_um = this.uieScanRange.get()*1000;
+            %             scanRange_um = this.uieScanRange.get()*1000;
             N           = this.uieRes.get();
             dMaxPhoton  = this.uieNp.get();
             FP = this.uicbFourierPtychography.get();
@@ -2232,7 +2236,7 @@ classdef PIE_Analyze < mic.Base
             lambda_um   = this.uieLambda.get()/1000;
             z_um        =this.uiez2.get()*1000;
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
-
+            
             
             H = PIE.utils.prePropagate (this.dProbe,propagator,this.do_um,lambda_um,z_um,1);
             if isempty(this.dProbe)
@@ -2252,7 +2256,7 @@ classdef PIE_Analyze < mic.Base
                 dPosShifts = kxy./dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
                 dPosShifts = round(dPosShifts);
-%                 [K,L] = size(this.dObject);
+                %                 [K,L] = size(this.dObject);
             else
                 dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
             end
@@ -2266,8 +2270,20 @@ classdef PIE_Analyze < mic.Base
                 end
                 
                 for m = 1:nSteps
-                    sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
-                        propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
+                    if ~FP
+                        sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
+                            propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
+                    else
+                        [K,L] = size(this.dObject);
+                        xo_um = linspace(-L/2,L/2,L)*this.dc_um*N/L; % object coordinates
+                        yo_um = linspace(-K/2,K/2,K)*this.dc_um*N/K; % object coordinates
+                        [x,y] = meshgrid(xo_um,yo_um);
+                        tilt = exp(1i*kxy(m,2).*x+1i*kxy(m,1).*y);
+                        object =  PIE.utils.Propagate (this.dObject,propagator,this.do_um,lambda_um,1);
+                        object = object.*tilt;
+                        sqrtInt = PIE.utils.simulateFPMPattern(this.dProbe,object,this.ceSegments,modeNumber,N,...
+                            propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
+                    end
                     % add systematic error
                     Int = sqrtInt.^2;
                     simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
@@ -2292,7 +2308,7 @@ classdef PIE_Analyze < mic.Base
                 Int = sqrtInt.^2;
                 Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
                 this.handleLoadData({Int}, {'sim'});
-                this.dAnalysisRegion(Wint==0)=0;
+                this.dAnalysisRegion(sqrtInt==0)=0;
                 fprintf('Single image took %s\n', s2f(toc));
             end
             
@@ -2570,7 +2586,7 @@ classdef PIE_Analyze < mic.Base
                     
                 end
             end
-            try
+%             try
                 % Compute analysis region and shear region
                 SelectMask=this.uipSelectMask.getSelectedIndex();
                 switch SelectMask
@@ -2583,8 +2599,8 @@ classdef PIE_Analyze < mic.Base
                 end
                 
                 this.replot(this.U8DATA, dMetaFlags);
-            catch
-            end
+%             catch
+%             end
             
             % Make data tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8DATA);
@@ -2732,10 +2748,10 @@ classdef PIE_Analyze < mic.Base
                         this.haObjectPha.Title.String = 'Object phase';this.haObjectPha.XLabel.String = 'mm';this.haObjectPha.YLabel.String = 'mm';
                     case  this.U8GUESS
                         propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
-%                         detSize_um  = this.uieDetSize.get()*1000;
+                        %                         detSize_um  = this.uieDetSize.get()*1000;
                         u8ModeId = this.uilSelectMode.getSelectedIndexes();
                         lambda_um =this.uieLambda.get()/1000;
-%                         z_um =this.uiez2.get()*1000;
+                        %                         z_um =this.uiez2.get()*1000;
                         N           = this.uieRes.get();
                         [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
                         xp_mm = linspace(-N/2,N/2,N)*this.do_um/1000; % object coordinates
@@ -2762,7 +2778,7 @@ classdef PIE_Analyze < mic.Base
                         propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
                         lambda_um =this.uieLambda.get()/1000;
                         u8ModeId = this.uilSelectMode.getSelectedIndexes();
-%                         z_um =this.uiez2.get()*1000;
+                        %                         z_um =this.uiez2.get()*1000;
                         N           = this.uieRes.get();
                         [K,L] = size(this.dObjectGuess(:,:,u8ModeId));
                         xp_mm = linspace(-N/2,N/2,N)*this.do_um/1000; % object coordinates
@@ -2777,7 +2793,7 @@ classdef PIE_Analyze < mic.Base
                             yo_mm = linspace(-K/2,K/2,K)*this.do_um/1000; % object coordinates
                         end
                         object_pha = atan2(imag(object),real(object));
-%                         object_pha = unwrap(unwrap(object_pha,[],1),[],2);
+                        %                         object_pha = unwrap(unwrap(object_pha,[],1),[],2);
                         imagesc(this.haReconProbeAmp, xp_mm,xp_mm,abs(this.dProbeRecon(:,:,u8ModeId)));colorbar(this.haReconProbeAmp);axis(this.haReconProbeAmp,'xy');
                         this.haReconProbeAmp.Title.String = 'Reconstructed probe amplitude';this.haReconProbeAmp.XLabel.String = 'mm';this.haReconProbeAmp.YLabel.String = 'mm';
                         imagesc(this.haReconProbePha, xp_mm,xp_mm,atan2(imag(this.dProbeRecon(:,:,u8ModeId)),real(this.dProbeRecon(:,:,u8ModeId))));colorbar(this.haReconProbePha);axis(this.haReconProbePha,'xy');
@@ -2832,7 +2848,7 @@ classdef PIE_Analyze < mic.Base
                             u8ModeId = this.uilSelectMode.getSelectedIndexes();
                             object = this.dSelectedObject(:,:,u8ModeId);
                             % %                             object = unwrap(unwrap(object,[],1),[],2);
-%                             object=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(object,255*ones(size(object)));
+                            %                             object=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(object,255*ones(size(object)));
                             [K,L] = size(object);
                             x_mm = this.dUnit_mm*linspace(-L/2,L/2,L);
                             y_mm = this.dUnit_mm*linspace(-K/2,K/2,K);
@@ -3250,7 +3266,7 @@ classdef PIE_Analyze < mic.Base
             
             % Control: Reconstruction: WDD
             this.uieEpsilon.build           (uitWDD, 20, 20, 100, 20);
-
+            
             % Control: Reconstruction: ML
             this.uipLikelihoodType.build    (uitML, 200, 10, 100, 20);
             this.uieRegularization.build           (uitML, 20, 10, 70, 20);
