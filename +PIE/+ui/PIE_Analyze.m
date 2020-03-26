@@ -1034,19 +1034,28 @@ classdef PIE_Analyze < mic.Base
                     if FP
                         k0 = 2*pi/lambda_um;
                         %                         kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-                        kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+%                         kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                        kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
                         phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                         kxy = [kr.*sin(phi),kr.*cos(phi)];
-                        dkxy = 2*pi/this.dc_um/N;
+                        dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
                         dPosShifts = kxy./dkxy;
                         dPosShifts = dPosShifts -min(dPosShifts,[],1);
                         dPosShifts = round(dPosShifts);
                         K = max(dPosShifts(:,1))+N;
                         L = max(dPosShifts(:,2))+N;
+                        if abs(K-L)<=2
+                            K=max(K,L);
+                            L=max(K,L);
+                        end
                     else
                         dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
                         K = max(dPosShifts(:,1))+N;
                         L = max(dPosShifts(:,2))+N;
+                        if abs(K-L)<=2
+                            K=max(K,L);
+                            L=max(K,L);
+                        end
                     end
                     if K>2000
                         fprintf('object sampling: %d, please adjust scanning range\n',K);
@@ -1412,19 +1421,28 @@ classdef PIE_Analyze < mic.Base
             if FP
                 k0 = 2*pi/lambda_um;
                 %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+%                 kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
                 phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
-                dkxy = 2*pi/this.dc_um/N;
+                dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
                 dPosShifts = kxy./dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
                 dPosShifts = round(dPosShifts);
                 K = max(dPosShifts(:,1))+N;
                 L = max(dPosShifts(:,2))+N;
+                if abs(K-L)<=2
+                    K=max(K,L);
+                    L=max(K,L);
+                end
             else
                 dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
                 K = max(dPosShifts(:,1))+N;
                 L = max(dPosShifts(:,2))+N;
+                if abs(K-L)<=2
+                    K=max(K,L);
+                    L=max(K,L);
+                end
             end
             %             K = round(scanRange_um/this.do_um)+N;
             %             L = round(scanRange_um/this.do_um)+N; % size of object [K,L]
@@ -1709,10 +1727,10 @@ classdef PIE_Analyze < mic.Base
             if FP
                 k0 = 2*pi/lambda_um;
                 %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
                 phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
-                dkxy = 2*pi/this.dc_um/N;
+                dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
                 Rpix = kxy./dkxy;
                 Rpix = Rpix -min(Rpix,[],1);
                 Rpix = round(Rpix);
@@ -2039,6 +2057,7 @@ classdef PIE_Analyze < mic.Base
                     %                     this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
                     %                     this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
+%                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2249,10 +2268,12 @@ classdef PIE_Analyze < mic.Base
             if FP
                 k0 = 2*pi/lambda_um;
                 %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-                kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+%                 kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um));
+                kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
                 phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
-                dkxy = 2*pi/this.dc_um/N;
+%                 dkxy = 2*pi/this.dc_um/N;
+                dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
                 dPosShifts = kxy./dkxy;
 %                 kxy = round(dPosShifts).*dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
@@ -2276,8 +2297,8 @@ classdef PIE_Analyze < mic.Base
                             propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
 %                     else
 %                         [K,L] = size(this.dObject);
-%                         xo_um = linspace(-L/2,L/2-1,L)*this.dc_um*N/L; % object coordinates
-%                         yo_um = linspace(-K/2,K/2-1,K)*this.dc_um*N/K; % object coordinates
+%                         xo_um = linspace(-L/2,L/2-1,L)*this.dc_um*N/L/this.uieMag.get(); % object coordinates
+%                         yo_um = linspace(-K/2,K/2-1,K)*this.dc_um*N/K/this.uieMag.get(); % object coordinates
 %                         [x,y] = meshgrid(xo_um,yo_um);
 %                         tilt = exp(1i*kxy(m,2).*x+1i*kxy(m,1).*y);
 %                         object =  PIE.utils.Propagate (this.dObject,propagator,this.do_um,lambda_um,1);
@@ -2555,6 +2576,7 @@ classdef PIE_Analyze < mic.Base
                     end
                     % normalize intensity
                     %                     if strcmp(ceMeta{1},'sim')~=1
+                    FP = this.uicbFourierPtychography.get();
                     if k==1 && t==1
                         if ~isempty(this.ceSegments) % normalize intensity for segments detector
                             segInt=zeros(length(this.ceSegments),1);
@@ -2565,9 +2587,17 @@ classdef PIE_Analyze < mic.Base
                                 detectorUsage = detectorUsage+sum(seg(:));
                             end
                             detectorUsage = detectorUsage/length(this.ceIntR{1,1})^2;
-                            normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(segInt)*detectorUsage;
+                            if ~FP
+                                normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(segInt)*detectorUsage;
+                            else
+                                normalizeFactor = sum(abs(this.dObjectGuess(:)).^2)/sum(segInt)*detectorUsage;
+                            end
                         else
-                            normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                            if ~FP
+                                normalizeFactor = sum(abs(this.dProbeGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                            else
+                                normalizeFactor = sum(abs(this.dObjectGuess(:)).^2)/sum(this.ceIntR{1,1}(:));
+                            end
                         end
                     end
                     this.ceIntR{k,t} = this.ceIntR{k,t}*normalizeFactor;

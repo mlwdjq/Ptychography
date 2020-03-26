@@ -62,7 +62,7 @@ dPos_mm = [r1*sin(phi),r1*cos(phi)+offset;r2*sin(phi),r2*cos(phi)+offset];
 figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');hold on
 lambda_um =13.5e-3;
 k0 = 2*pi/lambda_um;
-kr = k0*sin(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/pie.uieDetSize.get());
+kr = k0*sin(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/pie.uiez2.get());
 phi = atan2(dPos_mm(:,1),dPos_mm(:,2));
 kxy = [kr.*sin(phi),kr.*cos(phi)];
 dkxy = 2*pi/pie.dc_um/pie.uieRes.get();
@@ -70,10 +70,33 @@ dPosShifts = kxy./dkxy;
 kxy = round(dPosShifts).*dkxy;
 phis= atan2(kxy(:,1),kxy(:,2));
 krs = sqrt(kxy(:,1).^2+kxy(:,2).^2);
-rs = asin(krs/k0)*pie.uieDetSize.get();
+rs = asin(krs/k0)*pie.uiez2.get();
 [x,y] =pol2cart(phis,rs);
 dPos_mm = [y,x];
 figure(2),plot(x,y,'o');hold off
+
+%% round segment scanning 2
+r1 = 0.1043;
+r2 = 0.2141;
+dPhi =pi/4;
+phi = [0:dPhi:2*pi-dPhi]';
+offset = 3*tan(6/180*pi);
+dPos_mm = [r1*sin(phi),r1*cos(phi)+offset;r2*sin(phi),r2*cos(phi)+offset];
+figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');hold on
+lambda_um =13.5e-3;
+k0 = 2*pi/lambda_um;
+kr = k0*sin(atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/pie.uieLo.get()));
+phi = atan2(dPos_mm(:,1),dPos_mm(:,2));
+kxy = [kr.*sin(phi),kr.*cos(phi)];
+dkxy = 2*pi/pie.dc_um/pie.uieRes.get()*pie.uieMag.get();
+dPosShifts = kxy./dkxy;
+kxy = round(dPosShifts).*dkxy;
+phis= atan2(kxy(:,1),kxy(:,2));
+krs = sqrt(kxy(:,1).^2+kxy(:,2).^2);
+rs = tan(asin(krs/k0))*pie.uieLo.get();
+[x,y] =pol2cart(phis,rs);
+dPos_mm = [y,x];
+figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'o');hold off
 %% 3D circular scanning
 N= 9;
 Nz = 11;
@@ -102,4 +125,4 @@ dPos_mm=[repmat(dPos_mm,[Nz,1]),dzs_mm(:)];
 figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
 
 %% save probe
-save('../../data/scanning/CircularRoundOffsetScanningSeg16.mat','dPos_mm');
+save('../../data/scanning/CircularRoundOffsetScanningSeg16s.mat','dPos_mm');
