@@ -1027,7 +1027,7 @@ classdef PIE_Analyze < mic.Base
                     u8ModeId = this.uilSelectMode.getSelectedIndexes();
                     modeNumber = this.uieModeNumber.get();
                     samplingFactor_det = lambda_um.*z_um/(this.dc_um*N*this.dc_um);
-                    if samplingFactor_det>1
+                    if samplingFactor_det>1&&~strcmp(propagator,'fourier')
                         fprintf('Please adjust configurations for propagation sampling\n');
                     end
                     
@@ -1294,7 +1294,7 @@ classdef PIE_Analyze < mic.Base
                 this.do_um = this.dc_um; % object pixel pitch
             end
             samplingFactor_det = lambda_um.*z_um/(this.dc_um*N*this.dc_um);
-            if samplingFactor_det>1
+            if samplingFactor_det>1&&~strcmp(propagator,'fourier')
                 fprintf('Please adjust configurations for propagation sampling\n');
             end
             if isempty(probeOffset)
@@ -2057,7 +2057,7 @@ classdef PIE_Analyze < mic.Base
                     %                     this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
                     %                     this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
-%                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
+                    this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else

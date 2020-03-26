@@ -124,7 +124,7 @@ end
 %% save normal incidence object
 if normalIncidence==1
     object = PIE.utils.Propagate (Ey,'angular spectrum',dx_nm/1000,lambda_um,df_um);
-    save(['D:\OneDrive\Ptychography\code\Ptychography\data\object\',filename],'object');
+    save([pie.cAppPath,'\..\..\data\object\',filename],'object');
     return;
 end
 

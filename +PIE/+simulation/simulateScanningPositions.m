@@ -80,7 +80,7 @@ r1 = 0.1043;
 r2 = 0.2141;
 dPhi =pi/4;
 phi = [0:dPhi:2*pi-dPhi]';
-offset = 3*tan(6/180*pi);
+offset = 3*tan(6.4188/180*pi);%6.16405
 dPos_mm = [r1*sin(phi),r1*cos(phi)+offset;r2*sin(phi),r2*cos(phi)+offset];
 figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');hold on
 lambda_um =13.5e-3;
@@ -125,4 +125,4 @@ dPos_mm=[repmat(dPos_mm,[Nz,1]),dzs_mm(:)];
 figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
 
 %% save probe
-save('../../data/scanning/CircularRoundOffsetScanningSeg16s.mat','dPos_mm');
+save([pie.cAppPath,'/../../data/scanning/CircularRoundOffsetScanningSeg16s-6.4188.mat'],'dPos_mm');
