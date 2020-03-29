@@ -237,7 +237,7 @@ classdef PIE_Analyze < mic.Base
         uie11orderStrength
         uieDetCurve
         uieFlareLevel
-        uieMSFN
+        uieMSFR
         uieNonlinearity
         uieAirflow
         
@@ -459,22 +459,22 @@ classdef PIE_Analyze < mic.Base
             this.uibCustomSim = mic.ui.common.Button('cText', 'Custom Sim', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibReset = mic.ui.common.Button('cText', 'Reset', 'fhDirectCallback', @(src, evt)this.cb(src));
             
-            this.uiePhaseShiftingError = mic.ui.common.Edit('cLabel', 'Grat Phase Shift er (nm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uiePhaseShiftingError = mic.ui.common.Edit('cLabel', 'Stage uncertainty (nm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             
             this.uieZLinearDrift    = mic.ui.common.Edit('cLabel', 'Z Lin Drift (nm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieXLinearDrift   = mic.ui.common.Edit('cLabel', 'X Lin Drift (nm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieYLinearDrift   = mic.ui.common.Edit('cLabel', 'Y Lin Drift (nm)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieGratingTiltErr  = mic.ui.common.Edit('cLabel', 'Grat tilt error(deg)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieDetectorTiltErr = mic.ui.common.Edit('cLabel', 'Det tilt error (deg)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieGratingTiltErr  = mic.ui.common.Edit('cLabel', '-Grat tilt error(deg)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieDetectorTiltErr = mic.ui.common.Edit('cLabel', '-Det tilt error (deg)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieShotToShot       = mic.ui.common.Edit('cLabel', 'Shot to shot (%)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uie2ndOrderStrength = mic.ui.common.Edit('cLabel', '2nd order strength)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uie11orderStrength = mic.ui.common.Edit('cLabel', '11 order strength)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieDetCurve       = mic.ui.common.Edit('cLabel', 'Dt. Curve(um)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uie2ndOrderStrength = mic.ui.common.Edit('cLabel', '-', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uie11orderStrength = mic.ui.common.Edit('cLabel', '-', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieDetCurve       = mic.ui.common.Edit('cLabel', '-Dt. Curve(um)', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieFlareLevel       = mic.ui.common.Edit('cLabel', 'DC flare', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieMSFN       = mic.ui.common.Edit('cLabel', 'MSFN', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieNonlinearity       = mic.ui.common.Edit('cLabel', 'Nonlinearity (a,b)', 'cType', 'c', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieMSFR       = mic.ui.common.Edit('cLabel', 'MSFR', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieNonlinearity       = mic.ui.common.Edit('cLabel', 'Nonlinearity', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieAirflow       = mic.ui.common.Edit('cLabel', 'Airflow', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-            this.uieNonlinearity.set('[0, 0]');
+           
             
             %% Controls: Reconstruction
             this.uitIteration               = mic.ui.common.Text('cVal','');
@@ -1193,9 +1193,9 @@ classdef PIE_Analyze < mic.Base
                 case this.uibReset
                     this.setSimParams('zDrift',0,'xDrift',0,'yDrift',0,'gratTilt',0,'detTilt',0,'shotToShot',0,...
                         '2ndOrderStrength',0,'11OrderStrength',0,'xyStageError',0,'detectorCurve',0,'flareLevel',0,...
-                        'MSFN',0,'nonlinearity', '[0, 0]','airflow',0);
+                        'MSFR',0,'nonlinearity', 0,'airflow',0,'nPhotons',0);
                     
-                case {this.uieZrn, this.uieNonlinearity}
+                case {this.uieZrn}
                     this.validateCouplesEditBox(src, '[]');
                     
                     
@@ -2255,8 +2255,6 @@ classdef PIE_Analyze < mic.Base
             lambda_um   = this.uieLambda.get()/1000;
             z_um        =this.uiez2.get()*1000;
             propagator = this.uipPropagator.getOptions{this.uipPropagator.getSelectedIndex()};
-            
-            
             H = PIE.utils.prePropagate (this.dProbe,propagator,this.do_um,lambda_um,z_um,1);
             if isempty(this.dProbe)
                 this.dProbe = pinhole(round(N/2),N,N);
@@ -2265,12 +2263,29 @@ classdef PIE_Analyze < mic.Base
                 KL = round(this.uieScanRange.get()*1000./this.do_um)+N;
                 this.dObject = ones(KL);
             end
+            
+            % load error sources
+            dZDriftTotal = this.uieZLinearDrift.get() / 1000; % (um)
+            dXDriftTotal = this.uieXLinearDrift.get() / 1000000; % (mm)
+            dYDriftTotal = this.uieYLinearDrift.get() / 1000000; % (mm)
+            dNonlinearity = this.uieNonlinearity.get()*randn(N);
+            dStageUncertainty = this.uiePhaseShiftingError.get() / 1000000; % (mm)
+            airflow     = this.uieAirflow.get();
+            MSFR        = this.uieMSFR.get();
+            dcFlare     =this.uieFlareLevel.get();
+            dPosSim_mm = this.dPos_mm;
+            xL = max(this.dPos_mm(:,2))-min(this.dPos_mm(:,2));
+            dPosSim_mm(:,2) = dPosSim_mm(:,2)+dXDriftTotal*(dPosSim_mm(:,2)-min(dPosSim_mm(:,2)))/xL...
+                + dStageUncertainty*randn(size(dPosSim_mm,1),1);
+            yL = max(this.dPos_mm(:,1))-min(this.dPos_mm(:,1));
+            dPosSim_mm(:,1) = dPosSim_mm(:,1)+dYDriftTotal*(dPosSim_mm(:,1)-min(dPosSim_mm(:,1)))/yL...
+                + dStageUncertainty*randn(size(dPosSim_mm,1),1);
             if FP
                 k0 = 2*pi/lambda_um;
                 %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
 %                 kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um));
-                kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
-                phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
+                kr = k0*sin(atan(sqrt(dPosSim_mm(:,1).^2+dPosSim_mm(:,2).^2)/this.uieLo.get()));
+                phi = atan2(dPosSim_mm(:,1),dPosSim_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
 %                 dkxy = 2*pi/this.dc_um/N;
                 dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
@@ -2278,10 +2293,16 @@ classdef PIE_Analyze < mic.Base
 %                 kxy = round(dPosShifts).*dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
                 dPosShifts = round(dPosShifts);
-                %                 [K,L] = size(this.dObject);
             else
-                dPosShifts = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
+                dPosShifts = round((dPosSim_mm(:,1:2)-min(dPosSim_mm(:,1:2),[],1))*1000/this.do_um);
             end
+            [K,L] = size(this.dObject);    
+            dPosShifts(dPosShifts(:,1)+N>K,1) = K-N;
+            dPosShifts(dPosShifts(:,1)<0,1) = 0;
+            dPosShifts(dPosShifts(:,2)+N>L,2) = L-N;
+            dPosShifts(dPosShifts(:,2)<0,2) = 0;
+            % add MSFR
+            dMSFR_Phase =   PIE.utils.generateMSFN(MSFR,N,10,100); % generate MSFR
             if lComputePSStack % True if simulating "stack"
                 this.uipbExposureProgress.set(0);
                 nSteps = length(dPosShifts);
@@ -2289,29 +2310,57 @@ classdef PIE_Analyze < mic.Base
                 simInts = cell(nStep2, 1);
                 if size(this.dPos_mm,2) ==3
                     dPosShifts(:,3) = this.dPos_mm(:,3)*1000;
+                    zL = max(dPosShifts(:,3))-min(dPosShifts(:,3));
+                    dPosShifts(:,3) = dPosShifts(:,3)+dZDriftTotal*(dPosShifts(:,3)-min(dPosShifts(:,3)))/zL;
                 end
-                
+                minValue=0;
+                maxValue=0;
                 for m = 1:nSteps
-%                     if FP
-                        sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,this.ceSegments,modeNumber,N,...
-                            propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
-%                     else
-%                         [K,L] = size(this.dObject);
-%                         xo_um = linspace(-L/2,L/2-1,L)*this.dc_um*N/L/this.uieMag.get(); % object coordinates
-%                         yo_um = linspace(-K/2,K/2-1,K)*this.dc_um*N/K/this.uieMag.get(); % object coordinates
-%                         [x,y] = meshgrid(xo_um,yo_um);
-%                         tilt = exp(1i*kxy(m,2).*x+1i*kxy(m,1).*y);
-%                         object =  PIE.utils.Propagate (this.dObject,propagator,this.do_um,lambda_um,1);
-%                         object = object.*tilt;
-%                         object =  PIE.utils.Propagate (object,propagator,this.do_um,lambda_um,-1);
-%                         sqrtInt = PIE.utils.simulateFPMPattern(this.dProbe,object,this.ceSegments,modeNumber,N,...
-%                             propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
-%                     end
+                    % add airflow
+                    dAirflow_Phase =   PIE.utils.generateMSFN(airflow,N,1,10); % generate airflow
+                    dAdditionalPhase = dAirflow_Phase+dMSFR_Phase;
+                    %                     if FP
+                    sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe.*exp(1i*2*pi*dAdditionalPhase),...
+                        this.dObject,this.ceSegments,modeNumber,N,propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
+                    %                     else
+                    %                         [K,L] = size(this.dObject);
+                    %                         xo_um = linspace(-L/2,L/2-1,L)*this.dc_um*N/L/this.uieMag.get(); % object coordinates
+                    %                         yo_um = linspace(-K/2,K/2-1,K)*this.dc_um*N/K/this.uieMag.get(); % object coordinates
+                    %                         [x,y] = meshgrid(xo_um,yo_um);
+                    %                         tilt = exp(1i*kxy(m,2).*x+1i*kxy(m,1).*y);
+                    %                         object =  PIE.utils.Propagate (this.dObject,propagator,this.do_um,lambda_um,1);
+                    %                         object = object.*tilt;
+                    %                         object =  PIE.utils.Propagate (object,propagator,this.do_um,lambda_um,-1);
+                    %                         sqrtInt = PIE.utils.simulateFPMPattern(this.dProbe,object,this.ceSegments,modeNumber,N,...
+                    %                             propagator,dPosShifts(m,:),H,1,this.do_um,lambda_um);
+                    %                     end
                     % add systematic error
                     Int = sqrtInt.^2;
-                    simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
+                    simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare);
+                    % calculate the minimum and maximum instensity to normalize
+                    % intensities
+                    if -min(simInts{m}(:))>minValue
+                        minValue=min(simInts{m}(:));
+                    end
+                    if max(simInts{m}(:))>maxValue
+                        maxValue=max(simInts{m}(:));
+                    end
                     this.uipbExposureProgress.set(m/nSteps);
                 end
+                
+                % add ccd nonlinearity
+                if minValue<0
+                    for m = 1:nSteps
+                            simInts{m}=((simInts{m}-minValue)/(maxValue-minValue)).^(1+dNonlinearity);
+                    end
+                else
+                    for m = 1:nSteps
+                            simInts{m}=(simInts{m}/maxValue).^(1+dNonlinearity);
+                    end
+                end
+                
+                
+                % make sure data set is N by N
                 for m = nSteps+1:nStep2
                     simInts{m} = zeros(N);
                 end
@@ -2324,12 +2373,22 @@ classdef PIE_Analyze < mic.Base
                 drawnow
             else % Simulate a singe image:
                 tic
+                % add airflow
+                dAirflow_Phase =   PIE.utils.generateMSFN(airflow,N,1,10); % generate airflow
+                dAdditionalPhase = dAirflow_Phase+dMSFR_Phase;
                 %
-                sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe,this.dObject,...
+                sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe.*exp(1i*2*pi*dAdditionalPhase),this.dObject,...
                     this.ceSegments,modeNumber,N,propagator,dPosShifts(1,1:2),H,1,this.do_um,lambda_um);
                 % add systematic error
                 Int = sqrtInt.^2;
                 Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
+                
+                % add ccd nonlinearity
+                if min(Int(:))<0
+                    Int=((Int-min(Int(:)))/(max(Int(:))-min(Int(:)))).^(1+dNonlinearity);
+                else
+                    Int=(Int/max(Int(:))).^(1+dNonlinearity);
+                end
                 this.handleLoadData({Int}, {'sim'});
                 this.dAnalysisRegion(sqrtInt==0)=0;
                 fprintf('Single image took %s\n', s2f(toc));
@@ -2965,8 +3024,8 @@ classdef PIE_Analyze < mic.Base
                         this.uieDetCurve.set(paramValue);
                     case 'flareLevel'
                         this.uieFlareLevel.set(paramValue);
-                    case 'MSFN'
-                        this.uieMSFN.set(paramValue);
+                    case 'MSFR'
+                        this.uieMSFR.set(paramValue);
                     case 'airflow'
                         this.uieAirflow.set(paramValue);
                     case 'gratingPitch'
@@ -3253,7 +3312,7 @@ classdef PIE_Analyze < mic.Base
             this.uie11orderStrength.build       (uitCSim, 280+Offset8, 90, 90, 25);
             this.uieDetCurve.build              (uitCSim, 410+Offset8, 10, 90, 25);
             this.uieFlareLevel.build            (uitCSim, 410+Offset8, 50, 90, 25);
-            this.uieMSFN.build                  (uitCSim, 410+Offset8, 90, 90, 25);
+            this.uieMSFR.build                  (uitCSim, 410+Offset8, 90, 90, 25);
             this.uieNonlinearity.build          (uitCSim, 20+Offset8, 130, 90, 25);
             this.uieAirflow.build               (uitCSim, 150+Offset8, 130, 90, 25);
             

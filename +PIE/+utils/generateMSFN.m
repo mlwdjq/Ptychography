@@ -14,5 +14,5 @@ if MSFN~=0
     dMSFN_Phase=real(ifft2(ifftshift(dMSFN_FFT)));
     dMSFN_Phase=MSFN*dMSFN_Phase/std(dMSFN_Phase(:));
 else
-    dMSFN_Phase=[];
+    dMSFN_Phase=0;
 end
