@@ -2943,7 +2943,7 @@ classdef PIE_Analyze < mic.Base
                             [K,L] = size(object);
                             x_mm = this.dUnit_mm*linspace(-L/2,L/2,L);
                             y_mm = this.dUnit_mm*linspace(-K/2,K/2,K);
-                            h=imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
+                            imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
                             this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
                             RMSStr = ['RMS: ',num2str(std(object(this.dAnalysisMask==1)))];
                             this.uitRMS.set(RMSStr);
