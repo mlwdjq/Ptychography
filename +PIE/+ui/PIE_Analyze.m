@@ -278,6 +278,7 @@ classdef PIE_Analyze < mic.Base
         uipSelectRegion
         uipSelectObject
         uibAnalyze
+        uibLoadAnalysisRegion
         uieSigma
         uibDataCursor
         
@@ -529,9 +530,10 @@ classdef PIE_Analyze < mic.Base
                 'Object amplitude difference','Object phase difference','Probe amplitude difference','Probe phase difference'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uipSelectRegion      = mic.ui.common.Popup('cLabel', 'Select analysis region', 'ceOptions', ...
-                {'Entire region','Compute from scanning positions','Compute from probe diameter'}, ...
+                {'Entire region','Compute from scanning positions','Compute from probe diameter','Load region'}, ...
                 'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
             this.uibAnalyze        = mic.ui.common.Button('cText', 'Analyze', 'fhDirectCallback', @(src, evt)this.cb(src));
+            this.uibLoadAnalysisRegion        = mic.ui.common.Button('cText', 'Load analysis region', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibDataCursor        = mic.ui.common.Toggle('cTextFalse', 'Data cursor off','cTextTrue', 'Data cursor on', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieSigma = mic.ui.common.Edit('cLabel', 'Sigma filter', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uieSigma.set(0);
@@ -1236,6 +1238,20 @@ classdef PIE_Analyze < mic.Base
                     %% Analysis
                 case this.uibAnalyze
                     this.analyze();
+                    
+                case this.uibLoadAnalysisRegion
+                    cDataDir = fullfile(this.cAppPath,  '..', '..', 'Data','mask');
+                    [fn,pn]=uigetfile({'*.mat','Mask (*.mat)'},'Loading',cDataDir);
+                    fileformat=fn(end-2:end);
+                    filename= strcat(pn,fn);
+                    switch fileformat
+                        case 'mat'
+                            load(filename);
+                    end
+                    this.dAnalysisMask = mask;
+                    imagesc(this.haAnalysis, mask);axis(this.haAnalysis,'xy','tight','equal');
+                    this.haAnalysis.Title.String = 'Analysis region'; 
+                    this.uipSelectRegion.setSelectedIndex(uint8(4));
                     
                 case this.uibDataCursor
                     if this.uibDataCursor.get()
@@ -2113,6 +2129,7 @@ classdef PIE_Analyze < mic.Base
                     else
                         this.dAnalysisMask = probeRegion;
                     end
+                case 'Load region'
             end
             sigma = this.uieSigma.get();
             if sigma >0 %% using sigma filter remove noise
@@ -2943,9 +2960,18 @@ classdef PIE_Analyze < mic.Base
                             [K,L] = size(object);
                             x_mm = this.dUnit_mm*linspace(-L/2,L/2,L);
                             y_mm = this.dUnit_mm*linspace(-K/2,K/2,K);
-                            imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
-                            this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
-                            RMSStr = ['RMS: ',num2str(std(object(this.dAnalysisMask==1)))];
+                            if max(this.dAnalysisMask(:))>1
+                                mask = this.dAnalysisMask;
+                                mask(mask~=0)=1;
+                                imagesc(this.haAnalysis, x_mm,y_mm,object.*mask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
+                                this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
+                                step = mean(object(this.dAnalysisMask==2))-mean(object(this.dAnalysisMask==1));
+                                RMSStr = ['Step(rad): ',num2str(step)];
+                            else
+                                imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
+                                this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
+                                RMSStr = ['RMS(rad): ',num2str(std(object(this.dAnalysisMask==1)))];
+                            end
                             this.uitRMS.set(RMSStr);
                         end
                         drawnow;
@@ -3377,6 +3403,7 @@ classdef PIE_Analyze < mic.Base
             this.uipSelectObject.build     (this.hpAnalysis, 20, 20, 180, 20);
             this.uipSelectRegion.build       (this.hpAnalysis, 20, 70, 180, 20);
             this.uibAnalyze.build   (this.hpAnalysis, 415, 140, 160, 20);
+            this.uibLoadAnalysisRegion.build   (this.hpAnalysis, 20, 120, 120, 20);  
             this.uibDataCursor.build   (this.hpAnalysis, 415, 20, 160, 20);
             this.uieSigma.build   (this.hpAnalysis, 220, 20, 80, 20);
             

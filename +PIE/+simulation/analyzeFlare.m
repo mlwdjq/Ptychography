@@ -6,9 +6,9 @@ if ~exist('pie')||~ishandle(pie.hFigure)
     return;
 end
 
-%% shot noise analysis
-vals = linspace(1000,10000000,10); % Transform from 64-px detector to 1k detector
-nTrials = 10;
+%% dcFlare analysis
+vals = linspace(0,0.1,11); % Transform from 64-px detector to 1k detector
+nTrials = 1;
 
 % simulation parameters
 pie.cb(pie.uibReset); % clear error sources
@@ -28,10 +28,11 @@ for m = 1:nTrials
         tic
                 
         val = vals(k);
-        pie.setSimParams('nPhotons',val);
+        pie.setSimParams('flareLevel',val);
         pie.simStackAndReconstruct();
         pie.uipSelectObject.setSelectedIndex(uint8(12));
         pie.cb(pie.uibAnalyze);
+%         object = pie.dSelectedObject;
         rmsText = pie.uitRMS.get();
         RMS(k,m) = abs(str2double(rmsText(11:end)));
 
@@ -45,12 +46,9 @@ fprintf('Simulation finished at %s\n\n', tstart);
 fprintf('Simulation finished at %s\n\n', datestr(now, 31));
 
 %% plot
-figure,h=plot(vals(2:end),mean(RMS(2:end,:),2));xlabel('Number of photons'),ylabel('RMS object phase difference / rad');
+figure,h=plot(vals(1:end)*100,mean(RMS,2));xlabel('DC flare / %'),ylabel('RMS object phase difference / rad');
 set(h,'LineWidth',2); set(gca,'FontSize',14);
 
 %% save data
-save([pie.cAppPath,sprintf('/../../data/error analysis/Photon-study_%s.mat', regexprep(datestr(now, 31), ':', '.'))], 'vals', 'RMS');
-
-
-
+save([pie.cAppPath,sprintf('/../../data/error analysis/dcFlare-study_%s.mat', regexprep(datestr(now, 31), ':', '.'))], 'vals', 'RMS');
 
