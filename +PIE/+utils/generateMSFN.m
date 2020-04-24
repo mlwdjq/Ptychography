@@ -11,6 +11,7 @@ if MSFN~=0
     dMSFN_FFT(fx==0&fy<0)=0;
     dMSFN_FFT=dMSFN_FFT./sqrt(fx.^2+fy.^2);
     dMSFN_FFT(isnan(dMSFN_FFT))=0;
+    dMSFN_FFT(isinf(dMSFN_FFT))=0;
     dMSFN_Phase=real(ifft2(ifftshift(dMSFN_FFT)));
     dMSFN_Phase=MSFN*dMSFN_Phase/std(dMSFN_Phase(:));
 else

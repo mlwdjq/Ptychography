@@ -1757,7 +1757,8 @@ classdef PIE_Analyze < mic.Base
             if size(this.dPos_mm,2) ==3
                 Rpix(:,3) = this.dPos_mm(:,3)*1000;
                 zMax = this.do_um^2*N/lambda_um;
-                fprintf('Maximum propagation distance for 3-D scanning is %0.5f, while the input is %0.5f \n',zMax,abs(max(Rpix(:,3))));
+                DoF = lambda_um/(this.uieNA.get())^2;
+                fprintf('DoF is %0.3fum, and maximum propagation distance for 3-D scanning is %0.3fum, while the input is %0.3fum \n',DoF,zMax,abs(max(Rpix(:,3))));
             end
             nInt = size(this.dPos_mm,1);
             %             dPosShifts = eval(this.uiePhaseStepsSim.get());
