@@ -2399,7 +2399,7 @@ classdef PIE_Analyze < mic.Base
                     this.ceSegments,modeNumber,N,propagator,dPosShifts(1,1:2),H,1,this.do_um,lambda_um);
                 % add systematic error
                 Int = sqrtInt.^2;
-                Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s);
+                Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare);
                 
                 % add ccd nonlinearity
                 if min(Int(:))<0
