@@ -42,13 +42,13 @@ for j = 1:Nz
     th = atan2(y_um,x_um);
      SLM_pha = 2*pi*zfn(r,th);
 %     SLM_pha = 2*pi*randn(N);
-    SLM_pha=2*pi*PIE.utils.generateMSFN(0.2,256,10,15)+SLM_pha*0;
+    SLM_pha=2*pi*PIE.utils.generateMSFN(0.3,256,10,15)*+SLM_pha*0;
     SLM_amp = ones(N);
-    s = cos(2*pi*50*x_um/detSize_um)+cos(2*pi*50*y_um/detSize_um);
-%     SLM_amp(s<0)=0;
+    s = cos(2*pi*100*x_um/detSize_um);
+    SLM_amp(s<0)=0;
 %     figure(3),imagesc(s)
     SLM(:,:,j) = SLM_amp.*exp(1i*SLM_pha);
-    probe(:,:,j) = PIE.utils.Propagate (pinhole(round(2*Rc_um/2/pie.dc_um),N,N).*SLM(:,:,j),'fourier',...
+    probe(:,:,j) = PIE.utils.Propagate (pinhole(round(2*Rc_um/pie.dc_um),N,N).*SLM(:,:,j),'fourier',...
         pie.do_um,lambda_um,1);
     probe_amp = abs(probe(:,:,j));
     probe_pha = atan2(imag(probe(:,:,j)),real(probe(:,:,j)));
