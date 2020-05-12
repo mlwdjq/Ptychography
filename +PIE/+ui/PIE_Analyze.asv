@@ -1429,7 +1429,7 @@ classdef PIE_Analyze < mic.Base
                 overlap = PIE.utils.overlapRatio(airyR_um,dR); % overlap ratio of two circles
 %                 samplingFactor = 2*airyR_um/dR*segFactor*sqrt(Nz);
             end
-            samplingFactor = this.do_um/dR*segFactor*N/2*sqrt(Nz);
+            samplingFactor = this.do_um/dR*segFactor*N/2;
             this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
             
             this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
@@ -1463,7 +1463,7 @@ classdef PIE_Analyze < mic.Base
             end
             %             K = round(scanRange_um/this.do_um)+N;
             %             L = round(scanRange_um/this.do_um)+N; % size of object [K,L]
-            if round(scanRange_um/this.do_um)<scanSteps/sqrt(Nz)-1
+            if round(scanRange_um/this.do_um)<scanSteps/sqrt(Nz)
                 this.uitSampling.set(['Over scanning ',num2str(round(scanRange_um/this.do_um))]); % check sampling
             end
             if K>2000
