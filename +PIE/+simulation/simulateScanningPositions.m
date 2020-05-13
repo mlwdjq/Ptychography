@@ -124,13 +124,13 @@ dPos_mm=[repmat(dPos_mm,[Nz,1]),dzs_mm(:)];
 
 figure(2),plot3(dPos_mm(:,3),dPos_mm(:,2),dPos_mm(:,1),'.');box on
 %% 3D square scanning
-N= 19;
-dz_nm = 20;
-Nz = 9;
-z_nm = 0:20:20*(Nz-1);
+N= 21;
+dz_nm = 1000;
+Nz = 4;
+z_nm = 0:dz_nm:dz_nm*(Nz-1);
 % z_mm = (z_nm-max(z_nm)/2)*1e-6;
 z_mm = z_nm*1e-6;
-scanningRange_mm = 0.0002;
+scanningRange_mm = 0.000459;
 [dm,dn] = meshgrid(0: scanningRange_mm/(N-1):scanningRange_mm);
 dPos_mm  = [dm(:),dn(:)];
 dPos_mm = repmat(dPos_mm,Nz,1);
@@ -139,4 +139,4 @@ z_mm=z_mm(:);
 dPos_mm = [dPos_mm,z_mm];
 
 %% save probe
-save([pie.cAppPath,'/../../data/scanning/squareScanning3D_19by9.mat'],'dPos_mm');
+save([pie.cAppPath,'/../../data/scanning/squareScanning3D_21by4.mat'],'dPos_mm');

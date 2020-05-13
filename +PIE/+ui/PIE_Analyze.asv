@@ -1429,7 +1429,7 @@ classdef PIE_Analyze < mic.Base
                 overlap = PIE.utils.overlapRatio(airyR_um,dR); % overlap ratio of two circles
 %                 samplingFactor = 2*airyR_um/dR*segFactor*sqrt(Nz);
             end
-            samplingFactor = this.do_um/dR*segFactor*N/2;
+            samplingFactor = this.do_um/dR*segFactor*N/2*sqrt(Nz);
             this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
             
             this.uitSampling.set(['Sampling factor: ',num2str(round(samplingFactor*10)/10)]); % check sampling
@@ -1463,7 +1463,7 @@ classdef PIE_Analyze < mic.Base
             end
             %             K = round(scanRange_um/this.do_um)+N;
             %             L = round(scanRange_um/this.do_um)+N; % size of object [K,L]
-            if round(scanRange_um/this.do_um)<scanSteps/sqrt(Nz)
+            if round(scanRange_um/this.do_um)<scanSteps/sqrt(Nz)-1
                 this.uitSampling.set(['Over scanning ',num2str(round(scanRange_um/this.do_um))]); % check sampling
             end
             if K>2000
@@ -1973,7 +1973,7 @@ classdef PIE_Analyze < mic.Base
             df_um       = this.uiez1.get()*1000;% negative sign corresponds convergent
             z_um       = this.uiez2.get()*1000;
             Magnification = this.uieMag.get();
-            
+            lambda_um = this.uieLambda.get()/1000;
             % calculate probe radius
             if ~FP
                 switch probeType
@@ -1982,10 +1982,14 @@ classdef PIE_Analyze < mic.Base
                     case 'Plane wave'
                         Rprobe_um = Rc_um;
                 end
+                RAiry_um = 0.61*lambda_um/NA;
+                if Rprobe_um<RAiry_um
+                    Rprobe_um = RAiry_um;
+                end
             else
                 Rprobe_um = z_um*tan(asin(NA));
             end
-            Rpix = round(Rprobe_um/this.do_um);
+            Rpixs = round(Rprobe_um/this.do_um);
             if FP
                 objectRecon = fftshift(fft2(fftshift(this.dObjectRecon)));
                 probeRecon = fftshift(fft2(fftshift(this.dProbeRecon)));
@@ -2072,8 +2076,8 @@ classdef PIE_Analyze < mic.Base
                     s=objectRecon./objectOri;
                     this.dSelectedObject = atan2(imag(s),real(s));
                     dph = 1.2;
-                    %                     this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
-                    %                     this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
+%                                         this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
+%                                         this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
                     if FP
@@ -2082,7 +2086,7 @@ classdef PIE_Analyze < mic.Base
                         this.dUnit_mm = this.do_um/1000;
                     end
                 case 'Probe amplitude difference'
-                    this.dSelectedObject = abs(probeRecon)./mean(abs(probeRecon(pinhole(2*Rpix,N,N)==1))) - abs(probeOri)./mean(abs(probeOri(pinhole(2*Rpix,N,N)==1)));
+                    this.dSelectedObject = abs(probeRecon)./mean(abs(probeRecon(pinhole(2*Rpixs,N,N)==1))) - abs(probeOri)./mean(abs(probeOri(pinhole(2*Rpix,N,N)==1)));
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2102,6 +2106,20 @@ classdef PIE_Analyze < mic.Base
             end
             
             [K,L] = size(this.dSelectedObject);
+            if FP
+                k0 = 2*pi/lambda_um;
+                %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
+                kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
+                phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
+                kxy = [kr.*sin(phi),kr.*cos(phi)];
+                dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
+                Rpix = kxy./dkxy;
+                Rpix = Rpix -min(Rpix,[],1);
+                Rpix = round(Rpix);
+                %                 [K,L] = size(this.dObjectGuess);
+            else
+                Rpix = round((this.dPos_mm(:,1:2)-min(this.dPos_mm(:,1:2),[],1))*1000/this.do_um);
+            end
             
             switch selectedRegion
                 case 'Entire region'
@@ -2112,7 +2130,7 @@ classdef PIE_Analyze < mic.Base
                     Rminn = min(Rpix(:,2));
                     Rmaxm = max(Rpix(:,1));
                     Rmaxn = max(Rpix(:,2));
-                    probeRegion = pinhole(2*Rpix,N,N);
+                    probeRegion = pinhole(2*Rpixs,N,N);
                     if K>N
                         this.dAnalysisMask = zeros(K,L);
                         this.dAnalysisMask(Rminm+N/2+1:Rmaxm+N/2,Rminn+N/2+1:Rmaxn+N/2) = 1;
@@ -2121,7 +2139,7 @@ classdef PIE_Analyze < mic.Base
                     end
                 case 'Compute from probe diameter'
                     this.dAnalysisMask = zeros(K,L);
-                    probeRegion = pinhole(2*Rpix,N,N);
+                    probeRegion = pinhole(2*Rpixs,N,N);
                     if K>N
                         for i = 1:length(this.dPos_mm)
                             this.dAnalysisMask(Rpix(i,1)+[1:N],Rpix(i,2)+[1:N]) = ...
@@ -2137,7 +2155,7 @@ classdef PIE_Analyze < mic.Base
             if sigma >0 %% using sigma filter remove noise
                 selectedData = this.dSelectedObject(this.dAnalysisMask==1);
                 rms = std(selectedData);
-                selectedData(abs(selectedData-mean(selectedData))>sigma*rms)=0;
+                selectedData(abs(selectedData-mean(selectedData))>sigma*rms)=NaN;
                 this.dSelectedObject(this.dAnalysisMask==1) = selectedData;
             end
             % Make phase tab active:
@@ -2970,6 +2988,8 @@ classdef PIE_Analyze < mic.Base
                                 step = mean(object(this.dAnalysisMask==2))-mean(object(this.dAnalysisMask==1));
                                 RMSStr = ['Step(rad): ',num2str(step)];
                             else
+%                                 object(this.dAnalysisMask==0)=NaN;
+
                                 imagesc(this.haAnalysis, x_mm,y_mm,object.*this.dAnalysisMask);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
                                 this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
                                 RMSStr = ['RMS(rad): ',num2str(std(object(this.dAnalysisMask==1)))];

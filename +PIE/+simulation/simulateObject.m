@@ -82,12 +82,12 @@ object_amp = crop2(I2,128,128);
 figure, imagesc(object_phase)
 
 %% contact
-n = 15;
-ns = 170;
-object_amp =pad2(ones(n),ns,ns);
-object_phase = pad2(ones(n),ns,ns)*pi/4;
-% object_amp=circshift(object_amp,[n/2,n/2]);
-% object_phase=circshift(object_phase,[n/2,n/2]);
+n = 11;
+ns = 115;
+object_amp =(pad2(ones(n),ns,ns)+1)/2;
+object_phase = pad2(ones(n),ns,ns)*pi*0.8;
+% object_amp=circshift(object_amp,[2,2]);
+% object_phase=circshift(object_phase,[2,2]);
 figure(2),imagesc(object_amp)
 
 %% pinhole
@@ -113,4 +113,4 @@ figure(2),imagesc(s),colorbar
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/pinhole0.125.mat','object');
+save('../../data/object/contact11_115.mat','object');
