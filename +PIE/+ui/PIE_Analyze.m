@@ -2005,7 +2005,7 @@ classdef PIE_Analyze < mic.Base
                 objectOri = this.dObject;
                 probeOri = this.dProbe;
             end
-            
+%              objectRecon = circshift(objectRecon,[1,1]);
             switch selectedObject
                 case 'Object amplitude'
                     this.dSelectedObject = abs(objectRecon);
@@ -2079,7 +2079,7 @@ classdef PIE_Analyze < mic.Base
 %                                         this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
 %                                         this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
-                    this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
+%                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2373,7 +2373,7 @@ classdef PIE_Analyze < mic.Base
                     %                     end
                     % add systematic error
                     Int = sqrtInt.^2;
-                    simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare);
+                    simInts{m} = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare,this.ceSegments);
                     % calculate the minimum and maximum instensity to normalize
                     % intensities
                     if -min(simInts{m}(:))>minValue
@@ -2418,7 +2418,7 @@ classdef PIE_Analyze < mic.Base
                     this.ceSegments,modeNumber,N,propagator,dPosShifts(1,1:2),H,1,this.do_um,lambda_um);
                 % add systematic error
                 Int = sqrtInt.^2;
-                Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare);
+                Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare,this.ceSegments);
                 
                 % add ccd nonlinearity
                 if min(Int(:))<0
@@ -2984,16 +2984,24 @@ classdef PIE_Analyze < mic.Base
                                 mask = this.dAnalysisMask;
                                 mask(mask~=0)=1;
                                 object(mask==0) = NaN;
-                                imagesc(this.haAnalysis, x_mm,y_mm,object);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
-                                this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
                                 step = mean(object(this.dAnalysisMask==2)&~isnan(object))-mean(object(this.dAnalysisMask==1)&~isnan(object));
                                 RMSStr = ['Step(rad): ',num2str(step)];
-                            else
-                                object(this.dAnalysisMask==0)=NaN;
-%                                 object =PIE.utils.DelTilt(object);
                                 imagesc(this.haAnalysis, x_mm,y_mm,object);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
                                 this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
+                            else
+                                object(this.dAnalysisMask==0)=NaN;
+                                object =PIE.utils.DelTilt(object);
                                 RMSStr = ['RMS(rad): ',num2str(std(object(this.dAnalysisMask==1&~isnan(object))))];
+%                                 
+                                % crop region
+                                Nc = sum(this.dAnalysisMask(round(K/2),:))-2;
+                                object = crop2(object,Nc,Nc);
+                                x_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;
+                                y_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;                              
+                                imagesc(this.haAnalysis, x_um,y_um,object);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
+                                this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
+                                this.haAnalysis.XLabel.String = 'x/um';this.haAnalysis.YLabel.String = 'y/um';
+                                this.haAnalysis.FontSize = 14;
                             end
                             this.uitRMS.set(RMSStr);
                         end
