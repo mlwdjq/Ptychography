@@ -22,8 +22,8 @@ object_pha = interp2(p,q,I(:,:,1),m,n,'nearest');
 object_pha=mat2gray(object_pha);
 object_pha = (object_pha-0.5)*1*pi; % object phase
 object = object_amp.*exp(1i*object_pha);
-% figure(2),imagesc(object_amp),colorbar;
-% figure(3),imagesc(object_pha),colorbar;
+figure(2),imagesc(object_amp),colorbar;
+figure(3),imagesc(object_pha),colorbar;
 
 %% define probe
 Rc_um = z_um*tan(asin(NA));
@@ -31,10 +31,10 @@ Rc_um = z_um*tan(asin(NA));
 % generate phase modulation
 zernCouples = [40:5:80;ones(1,9)]';
 Nz = size(zernCouples,1);
- Nz = 4;
+%  Nz = 25;
 probe = zeros(N,N,Nz);
 for j = 1:Nz
-    zernCouple = [3,5];
+    zernCouple = zernCouples(j,:);
     % generate zernike function form based on zernike couples
     zfn         =   PIE.utils.generateZernikeFunction(zernCouple,N,1);
     [x_um,y_um] = meshgrid(linspace(-detSize_um/2,detSize_um/2,N));
@@ -42,7 +42,7 @@ for j = 1:Nz
     th = atan2(y_um,x_um);
      SLM_pha = 2*pi*zfn(r,th);
 %     SLM_pha = 2*pi*randn(N);
-    SLM_pha=2*pi*PIE.utils.generateMSFN(0.2,256,10,15)+SLM_pha*0;
+%     SLM_pha=2*pi*PIE.utils.generateMSFN(0.6,256,0,5)+SLM_pha*0;
     SLM_amp = ones(N);
     s = cos(2*pi*50*x_um/detSize_um)+cos(2*pi*50*y_um/detSize_um);
 %     SLM_amp(s<0)=0;

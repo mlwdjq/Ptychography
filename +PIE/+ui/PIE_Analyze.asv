@@ -2998,9 +2998,9 @@ classdef PIE_Analyze < mic.Base
                                 % find centroid
                                 NM=regionprops(this.dAnalysisMask,'Centroid');
                                 nm=NM.Centroid;
-                                nn=round(nm(1))-round(K/2);
-                                mm=round(nm(2))-round(L/2);
-                                object = circshift(object,-[nn,mm]);
+                                nn=round(nm(1))-N;
+                                mm=round(nm(2));
+                                object = circshift(object,[nn,mm]);
                                 object = crop2(object,Nc,Nc);
                                 x_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;
                                 y_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;                              

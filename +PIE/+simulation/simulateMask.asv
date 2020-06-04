@@ -30,4 +30,4 @@ mask = zeros(N);
 mask(round(5*N/8)+1-round(N/4):round(5*N/8)+round(N/4),round(5*N/8)+1-round(N/4):round(5*N/8)+round(N/4))=1;
 figure(2),imagesc(mask)
 %% save probe
-save([pie.cAppPath,'/../../data/mask/contact-400nm-2.mat'],'mask');
+save([pie.cAppPath,'/../../data/mask/contact-150nm-3.mat'],'mask');
