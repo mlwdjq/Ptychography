@@ -1,0 +1,28 @@
+%% this script is used to reconstruct the phase from QWLSI images
+
+% load aerialImages
+Nshift = length(aerialImages);
+
+for i =1:Nshift/2
+    Ix(:,:,i) = aerialImages{i};
+    Iy(:,:,i) = aerialImages{i+Nshift/2};
+    Ixs(i,:) = aerialImages{i}(:);
+    Iys(i,:) = aerialImages{i+Nshift/2}(:);
+end
+%% phase extraction
+
+method = 'random' ;
+
+switch method
+    case 'random'
+        delta = 0:2*pi/Nshift:2*pi-2*pi/Nshift;
+        [dWx,deltaX] = pie.utils.RandomShift(Ix,delta,50);
+        [dWy,deltaY] = pie.utils.RandomShift(Iy,delta,50);
+    case 'PSI'
+        dWx = atan2(Ix(:,:,2)-Ix(:,:,4),Ix(:,:,3)-Ix(:,:,1));
+        dWy = atan2(Iy(:,:,2)-Iy(:,:,4),Iy(:,:,3)-Iy(:,:,1));
+end
+
+
+%% phase reconstruction
+

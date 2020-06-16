@@ -59,7 +59,10 @@ Nshift = 4;
 deltaTheta = theta_2pi/Nshift;
 thetaX = 0:deltaTheta:theta_2pi-deltaTheta;
 thetaY = 0:deltaTheta:theta_2pi-deltaTheta;
-[atan(tand(offsetAngle)+thetaX)';atan(sqrt(tand(offsetAngle).^2+thetaY.^2))'
+theta = [atand(tand(offsetAngle)+thetaX),atand(sqrt(tand(offsetAngle).^2+thetaY.^2))];
+phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),thetaY)];
+dA = [theta',phi'];
+nInt = length()
 if normalIncidence==1
     dA=[6,-90];
     nInt =1;
@@ -107,7 +110,7 @@ end
 
 %% save data
 if saveData==1
-    save(dataFile, 'para','Ex_amp','Ey_amp','Ex_pha','Ey_pha', 'theta', 'phi','aerialImages','dPos_mm');
+    save(dataFile, 'para','Ex_amp','Ey_amp','Ex_pha','Ey_pha', 'theta', 'phi','aerialImages');
 end
 %% save images
 if saveImage == 1

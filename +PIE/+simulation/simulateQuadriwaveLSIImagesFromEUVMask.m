@@ -59,9 +59,10 @@ Nshift = 4;
 deltaTheta = theta_2pi/Nshift;
 thetaX = 0:deltaTheta:theta_2pi-deltaTheta;
 thetaY = 0:deltaTheta:theta_2pi-deltaTheta;
-theta = [atan(tand(offsetAngle)+thetaX),atan(sqrt(tand(offsetAngle).^2+thetaY.^2))];
+theta = [atand(tand(offsetAngle)+thetaX),atand(sqrt(tand(offsetAngle).^2+thetaY.^2))];
 phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),thetaY)];
-dA = [theta';phi'];
+dA = [theta',phi'];
+nInt = length(theta);
 if normalIncidence==1
     dA=[6,-90];
     nInt =1;
