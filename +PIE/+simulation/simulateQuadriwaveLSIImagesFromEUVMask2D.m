@@ -59,10 +59,13 @@ PIE.utils.setParameters(para,saveConfig,setupFile);
 theta_2pi = T_um/2/Lo_um;
 Nshift = 5;
 deltaTheta = theta_2pi/Nshift;
-thetaX = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
-thetaY = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
-theta = [atand(tand(offsetAngle)+thetaX),atand(sqrt(tand(offsetAngle).^2+thetaY.^2))];
-phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),-thetaY)];
+[thetaX,thetaY] = meshgrid([0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2);
+thetaX = thetaX(:)';
+thetaY = thetaY(:)';
+% thetaY = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
+
+theta = atand(sqrt((tand(offsetAngle)+thetaX).^2+thetaY.^2));
+phi = -atan2d(tand(offsetAngle)+thetaX,-thetaY);
 % phi(phi==0)= 360;
 % phi = phi-180;
 dA = [theta',phi'];

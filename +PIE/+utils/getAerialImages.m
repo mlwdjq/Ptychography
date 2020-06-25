@@ -1,4 +1,4 @@
-function aerialImages = getAerialImages(E,NAo,Lo_um,NA,lambda_um,z_um,dc_um,df_um,N,offsetAngle)
+function [aerialImages,Es] = getAerialImages(E,NAo,Lo_um,NA,lambda_um,z_um,dc_um,df_um,N,offsetAngle)
 do_um = lambda_um*z_um/N/dc_um;
 k0=2*pi/lambda_um; 
 cutoff = NA*k0;

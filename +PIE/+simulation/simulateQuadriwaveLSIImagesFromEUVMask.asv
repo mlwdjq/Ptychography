@@ -15,24 +15,26 @@ NAi = sin(atan(Lo_um/Li_um*tan(asin(NAo)))); % imaging NA
 det_um = pie.uieDetSize.get()*1000; % detector size
 N = length(pie.dObject); % sampling
 Nc = pie.uieRes.get(); % sampling
+N = Nc;
 dc_um = det_um/Nc; % detector size
 offsetAngle = 6;
+removeTilt =1;
 domain_nm = 450; % near field z
 t_abs_nm =56; % absorber thickness
-method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
+method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
-pitch_nm = L_nm/4; % feature size
+pitch_nm = L_nm/4/1.882; % feature size
 dx_nm =L_nm/N;% grid size dx/dy nm
-shearPercentage  = 0.05*10;
+shearPercentage  = 0.01*5;
 T_um =  lambda_um./(shearPercentage*det_um/Li_um/2);
 polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 
 saveConfig = 1; % save configuration
 saveData = 1; % save data
 saveImage = 1;
-normalIncidence = 1;% normal incident only
+normalIncidence = 0;% normal incident only
 filename = 'normalIncidence.mat';
 
 % frequently changed parameters
@@ -55,14 +57,16 @@ PIE.utils.setParameters(para,saveConfig,setupFile);
 
 %% set illumination
 theta_2pi = T_um/2/Lo_um;
-Nshift = 4;
+Nshift = 10;
 deltaTheta = theta_2pi/Nshift;
-thetaX = 0:deltaTheta:theta_2pi-deltaTheta;
-thetaY = 0:deltaTheta:theta_2pi-deltaTheta;
+thetaX = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
+thetaY = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
 theta = [atand(tand(offsetAngle)+thetaX),atand(sqrt(tand(offsetAngle).^2+thetaY.^2))];
-phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),thetaY)];
+phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),-thetaY)];
+% phi(phi==0)= 360;
+% phi = phi-180;
 dA = [theta',phi'];
-nInt = length()
+nInt = length(theta);
 if normalIncidence==1
     dA=[6,-90];
     nInt =1;
@@ -76,11 +80,33 @@ aerialImages = cell(nInt,1);
 for i=1: nInt
     setVariableValues( 'theta',dA(i,1));%
     setVariableValues( 'phi',dA(i,2));%
+    
     [~,~,~,Ex_amp(:,:,i),Ex_pha(:,:,i),Ey_amp(:,:,i),Ey_pha(:,:,i)] = PIE.utils.runSimulator(polarDire,method);
     %         pha_near =PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(pha_near,255*ones(N));
 end
 
-
+%% get normal incidence
+if 1
+    setVariableValues( 'theta',offsetAngle);%
+    setVariableValues( 'phi',-90);%
+    [~,~,~,~,Ex_phaN,~,Ey_phaN] = PIE.utils.runSimulator(polarDire,method);
+end
+%% get tilt
+if removeTilt ==1
+    setVariableValues( 'theta',offsetAngle);%
+    setVariableValues( 'phi',-90);%
+    setVariableValues( 'pitch',0);%
+    [~,~,~,Ex_amp0,Ex_pha0,~,Ey_pha0] = PIE.utils.runSimulator(polarDire,'KirchhoffThin');
+    offsetAngle = 0;
+else
+    Ex_pha0 = 0;
+    Ey_pha0 = 0;
+    
+end
+Ex_phaN = exp(1i*Ex_pha0)./exp(1i*Ex_phaN))/2/pi;
+% Ey_phaN = angle(exp(1i*Ey_pha0)./exp(1i*Ey_phaN))/2/pi;
+[~,ExN] =  PIE.utils.getQWLSIImages(Ex_phaN,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
+Ex_phaN = angle(ExN);
 %% generate aerial images
 maxInt = 0;
 for i=1: nInt
@@ -90,12 +116,12 @@ for i=1: nInt
         case 'TEMPESTpr2'
             df_um = 0.1; % defocus distance
     end
-    Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i));
-    Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i));
+    Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i))./exp(1i*Ex_pha0);
+    Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i))./exp(1i*Ey_pha0);
     aerialImagesx =  PIE.utils.getQWLSIImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
     aerialImagesy =  PIE.utils.getQWLSIImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
     aerialImages{i}= aerialImagesx+aerialImagesy;
-         imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
+%            imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
     if max(max(abs(aerialImages{i})))>maxInt
         maxInt = max(max(aerialImages{i}));
     end
@@ -123,6 +149,9 @@ if saveImage == 1
 %          imwrite(mat2gray(aerialImagesScale{i}-aerialImagesMo{i}),[dataFile(1:end-4),'\',num2str(i),'.bmp']);
     end
 end
+
+%% reconstruct
+PIE.simulation.reconstructQWLSI();
 
 %% plot result
 % figure(2),imagesc(aerialImages(:,:,1)), axis off tight equal; colorbar;
