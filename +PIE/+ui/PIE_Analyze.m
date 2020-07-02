@@ -475,7 +475,7 @@ classdef PIE_Analyze < mic.Base
             this.uieMSFR       = mic.ui.common.Edit('cLabel', 'MSFR', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieNonlinearity       = mic.ui.common.Edit('cLabel', 'Nonlinearity', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieAirflow       = mic.ui.common.Edit('cLabel', 'Airflow', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
-           
+            
             
             %% Controls: Reconstruction
             this.uitIteration               = mic.ui.common.Text('cVal','');
@@ -1036,7 +1036,7 @@ classdef PIE_Analyze < mic.Base
                     if FP
                         k0 = 2*pi/lambda_um;
                         %                         kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-%                         kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                        %                         kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
                         kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
                         phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                         kxy = [kr.*sin(phi),kr.*cos(phi)];
@@ -1250,7 +1250,7 @@ classdef PIE_Analyze < mic.Base
                     end
                     this.dAnalysisMask = mask;
                     imagesc(this.haAnalysis, mask);axis(this.haAnalysis,'xy','tight','equal');
-                    this.haAnalysis.Title.String = 'Analysis region'; 
+                    this.haAnalysis.Title.String = 'Analysis region';
                     this.uipSelectRegion.setSelectedIndex(uint8(4));
                     
                 case this.uibDataCursor
@@ -1424,10 +1424,10 @@ classdef PIE_Analyze < mic.Base
             dR = scanRange_um/(sqrt(scanSteps^2/Nz)-1); % scanning interval
             if Rprobe_um> airyR_um
                 overlap = PIE.utils.overlapRatio(Rprobe_um,dR); % overlap ratio of two circles
-%                 samplingFactor = 2*Rprobe_um/dR*segFactor*sqrt(Nz);
+                %                 samplingFactor = 2*Rprobe_um/dR*segFactor*sqrt(Nz);
             else
                 overlap = PIE.utils.overlapRatio(airyR_um,dR); % overlap ratio of two circles
-%                 samplingFactor = 2*airyR_um/dR*segFactor*sqrt(Nz);
+                %                 samplingFactor = 2*airyR_um/dR*segFactor*sqrt(Nz);
             end
             samplingFactor = this.do_um/dR*segFactor*N/2*sqrt(Nz);
             this.uitOverlap.set(['Overlap: ',num2str(round(overlap*100)),'%']); % check overlap
@@ -1438,7 +1438,7 @@ classdef PIE_Analyze < mic.Base
             if FP
                 k0 = 2*pi/lambda_um;
                 %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-%                 kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
+                %                 kr = k0*sin(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um);
                 kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)/this.uieLo.get()));
                 phi = atan2(this.dPos_mm(:,1),this.dPos_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
@@ -2005,7 +2005,7 @@ classdef PIE_Analyze < mic.Base
                 objectOri = this.dObject;
                 probeOri = this.dProbe;
             end
-%              objectRecon = circshift(objectRecon,[1,1]);
+            %              objectRecon = circshift(objectRecon,[1,1]);
             switch selectedObject
                 case 'Object amplitude'
                     this.dSelectedObject = abs(objectRecon);
@@ -2076,10 +2076,10 @@ classdef PIE_Analyze < mic.Base
                     s=objectRecon./objectOri;
                     this.dSelectedObject = atan2(imag(s),real(s));
                     dph = 1.2;
-%                                         this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
-%                                         this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
+                    %                                         this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)=this.dSelectedObject(this.dSelectedObject<min(min(this.dSelectedObject))+dph)+2*pi;
+                    %                                         this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)=this.dSelectedObject(this.dSelectedObject>max(max(this.dSelectedObject))-dph)-2*pi;
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
-%                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
+                    %                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
                     if FP
                         this.dUnit_mm = this.dc_um/1000/Magnification ;
                     else
@@ -2320,20 +2320,20 @@ classdef PIE_Analyze < mic.Base
             if FP
                 k0 = 2*pi/lambda_um;
                 %                 kxy = k0*sin(atan(this.dPos_mm*1000/z_um));
-%                 kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um));
+                %                 kr = k0*sin(atan(sqrt(this.dPos_mm(:,1).^2+this.dPos_mm(:,2).^2)*1000/z_um));
                 kr = k0*sin(atan(sqrt(dPosSim_mm(:,1).^2+dPosSim_mm(:,2).^2)/this.uieLo.get()));
                 phi = atan2(dPosSim_mm(:,1),dPosSim_mm(:,2));
                 kxy = [kr.*sin(phi),kr.*cos(phi)];
-%                 dkxy = 2*pi/this.dc_um/N;
+                %                 dkxy = 2*pi/this.dc_um/N;
                 dkxy = 2*pi/this.dc_um/N*this.uieMag.get();
                 dPosShifts = kxy./dkxy;
-%                 kxy = round(dPosShifts).*dkxy;
+                %                 kxy = round(dPosShifts).*dkxy;
                 dPosShifts = dPosShifts -min(dPosShifts,[],1);
                 dPosShifts = round(dPosShifts);
             else
                 dPosShifts = round((dPosSim_mm(:,1:2)-min(dPosSim_mm(:,1:2),[],1))*1000/this.do_um);
             end
-            [K,L] = size(this.dObject);    
+            [K,L] = size(this.dObject);
             dPosShifts(dPosShifts(:,1)+N>K,1) = K-N;
             dPosShifts(dPosShifts(:,1)<0,1) = 0;
             dPosShifts(dPosShifts(:,2)+N>L,2) = L-N;
@@ -2388,11 +2388,11 @@ classdef PIE_Analyze < mic.Base
                 % add ccd nonlinearity
                 if minValue<0
                     for m = 1:nSteps
-                            simInts{m}=((simInts{m}-minValue)/(maxValue-minValue)).^(1+dNonlinearity);
+                        simInts{m}=((simInts{m}-minValue)/(maxValue-minValue)).^(1+dNonlinearity);
                     end
                 else
                     for m = 1:nSteps
-                            simInts{m}=(simInts{m}/maxValue).^(1+dNonlinearity);
+                        simInts{m}=(simInts{m}/maxValue).^(1+dNonlinearity);
                     end
                 end
                 
@@ -2714,21 +2714,21 @@ classdef PIE_Analyze < mic.Base
                     
                 end
             end
-%             try
-                % Compute analysis region and shear region
-                SelectMask=this.uipSelectMask.getSelectedIndex();
-                switch SelectMask
-                    case 1
-                        this.computeDefaultMaskGeometry();
-                    case 2
-                        this.computeMET5Mask();
-                    case 3
-                        this.computeElipticalMask();
-                end
-                
-                this.replot(this.U8DATA, dMetaFlags);
-%             catch
-%             end
+            %             try
+            % Compute analysis region and shear region
+            SelectMask=this.uipSelectMask.getSelectedIndex();
+            switch SelectMask
+                case 1
+                    this.computeDefaultMaskGeometry();
+                case 2
+                    this.computeMET5Mask();
+                case 3
+                    this.computeElipticalMask();
+            end
+            
+            this.replot(this.U8DATA, dMetaFlags);
+            %             catch
+            %             end
             
             % Make data tab active:
             this.uitgAxesDisplay.selectTabByIndex(this.U8DATA);
@@ -2992,7 +2992,7 @@ classdef PIE_Analyze < mic.Base
                                 object(this.dAnalysisMask==0)=NaN;
                                 object =PIE.utils.DelTilt(object);
                                 RMSStr = ['RMS(rad): ',num2str(std(object(this.dAnalysisMask==1&~isnan(object))))];
-%                                 
+                                %
                                 % crop region
                                 Nc = sum(this.dAnalysisMask(round(K/2),:))-2;
                                 % find centroid
@@ -3003,7 +3003,7 @@ classdef PIE_Analyze < mic.Base
                                 object = circshift(object,-[nn,mm]);
                                 object = crop2(object,Nc,Nc);
                                 x_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;
-                                y_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;                              
+                                y_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;
                                 imagesc(this.haAnalysis, x_um,y_um,object);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
                                 this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
                                 this.haAnalysis.XLabel.String = 'x/um';this.haAnalysis.YLabel.String = 'y/um';
@@ -3099,21 +3099,28 @@ classdef PIE_Analyze < mic.Base
             end
         end
         
-        function build(this, dOffsetX, dOffsetY)
-            if nargin == 1
+        function build(this, hFigure, dOffsetX, dOffsetY)
+            if nargin <3
                 dOffsetX = 0;
                 dOffsetY = 0;
+            elseif nargin == 3
+                dOffsetY = dOffsetX;
+                dOffsetX =  hFigure;
             end
             
             %% build the main window
-            this.hFigure = figure(...
-                'name', 'PIE analysis GUI v1.20190129',...
-                'Units', 'pixels',...
-                'Position', [5 - dOffsetX, 5 - dOffsetY,  this.dWidth, this.dHeight],...
-                'handlevisibility','off',... %out of reach gcf
-                'numberTitle','off',...
-                'Toolbar','none',...
-                'Menubar','none');
+            if nargin == 2||nargin == 4
+                this.hFigure = hFigure;
+            else
+                this.hFigure = figure(...
+                    'name', 'PIE analysis GUI v1.20190129',...
+                    'Units', 'pixels',...
+                    'Position', [5 - dOffsetX, 5 - dOffsetY,  this.dWidth, this.dHeight],...
+                    'handlevisibility','off',... %out of reach gcf
+                    'numberTitle','off',...
+                    'Toolbar','none',...
+                    'Menubar','none');
+            end
             
             
             % Build all containers first:
@@ -3440,7 +3447,7 @@ classdef PIE_Analyze < mic.Base
             this.uipSelectObject.build     (this.hpAnalysis, 20, 20, 180, 20);
             this.uipSelectRegion.build       (this.hpAnalysis, 20, 70, 180, 20);
             this.uibAnalyze.build   (this.hpAnalysis, 415, 140, 160, 20);
-            this.uibLoadAnalysisRegion.build   (this.hpAnalysis, 20, 120, 120, 20);  
+            this.uibLoadAnalysisRegion.build   (this.hpAnalysis, 20, 120, 120, 20);
             this.uibDataCursor.build   (this.hpAnalysis, 415, 20, 160, 20);
             this.uieSigma.build   (this.hpAnalysis, 220, 20, 80, 20);
             
