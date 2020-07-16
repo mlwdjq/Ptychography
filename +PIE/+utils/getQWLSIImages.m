@@ -14,8 +14,9 @@ pupil = CTF.*defocus_pha.*QWLSI;
 spectrum =  PIE.utils.Propagate (E,'fourier',do_um,lambda_um,-1);
 % imagesc(abs(spectrum));pause(1)
 spectrum = crop2(spectrum,N,N).*pupil;
-%  imagesc(abs(spectrum));pause(1)
+%   imagesc(log(abs(spectrum)));pause(1)
 Es =  PIE.utils.Propagate (spectrum,'fourier',do_um,lambda_um,1);
+% ang = angle(Es);imagesc(ang),pause(1)
 aerialImages = abs(Es).^2;
 
 

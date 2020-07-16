@@ -1,7 +1,7 @@
 %% this script is used to reconstruct the phase from QWLSI images
 
 % load aerialImages
-method = 'fourier2D' ;
+method = 'random' ;
 if ~strcmp(method,'fourier2D' )
     Nshift = length(aerialImages);
     N = length(aerialImages{1});
@@ -58,13 +58,13 @@ dWy=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWyUnwrapped,255*ones(N));
 
 %% phase reconstruction
 scale =4;
-sp  = shearPercentage/scale;
+sp  = shearPercentage*det0_um/det_um/scale;
 dZ =PIE.utils.Retrieve_LP_iteration(dWx/2/pi,dWy/2/pi, sp, sp,ones(N))/scale;
 dZs = PIE.utils.DelTilt(dZ);
 
 %% plot
-figure(5),imagesc(dWy);
-figure(2),imagesc(dZs);
-figure(3),imagesc(Ex_phaN);
-figure(4),imagesc(dZs-Ex_phaN);
+figure(5),imagesc(dWy);colorbar;
+figure(2),imagesc(dZs);colorbar;
+figure(3),imagesc(Ex_phaN);colorbar;
+figure(4),imagesc(dZs-Ex_phaN);colorbar;
 %

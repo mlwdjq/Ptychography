@@ -27,8 +27,9 @@ dz_nm =1;% grid size dz nm
 L_nm = 1000*det_um/(NAo/NAi);
 pitch_nm = L_nm/4/1.882; % feature size
 dx_nm =L_nm/N;% grid size dx/dy nm
-shearPercentage  = 0.01*5;
-T_um =  lambda_um./(shearPercentage*det_um/Li_um/2);
+shearPercentage  = 0.005;
+det0_um = 5e3;
+T_um =  lambda_um./(shearPercentage*det0_um/Li_um/2);
 polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 
 saveConfig = 1; % save configuration
