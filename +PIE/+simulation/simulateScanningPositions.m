@@ -97,6 +97,29 @@ rs = tan(asin(krs/k0))*pie.uieLo.get();
 [x,y] =pol2cart(phis,rs);
 dPos_mm = [y,x];
 figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'o');hold off
+
+%% round small circle
+r = 0.03;
+dPhi =pi/4;
+phi = [0:dPhi:2*pi-dPhi]';
+offset = 3*tan(10.204/180*pi);%10.204,2.5766
+dPos_mm = [r*sin(phi),r*cos(phi)+offset];
+figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'.');hold on
+lambda_um =13.5e-3;
+k0 = 2*pi/lambda_um;
+kr = k0*sin(atan(sqrt(dPos_mm(:,1).^2+dPos_mm(:,2).^2)/pie.uieLo.get()));
+phi = atan2(dPos_mm(:,1),dPos_mm(:,2));
+kxy = [kr.*sin(phi),kr.*cos(phi)];
+dkxy = 2*pi/pie.dc_um/pie.uieRes.get()*pie.uieMag.get();
+dPosShifts = kxy./dkxy;
+kxy = round(dPosShifts).*dkxy;
+phis= atan2(kxy(:,1),kxy(:,2));
+krs = sqrt(kxy(:,1).^2+kxy(:,2).^2);
+rs = tan(asin(krs/k0))*pie.uieLo.get();
+[x,y] =pol2cart(phis,rs);
+dPos_mm = [y,x];
+figure(2),plot(dPos_mm(:,2),dPos_mm(:,1),'o');hold off
+
 %% 3D circular scanning
 N= 9;
 Nz = 11;
@@ -139,4 +162,4 @@ z_mm=z_mm(:);
 dPos_mm = [dPos_mm,z_mm];
 
 %% save probe
-save([pie.cAppPath,'/../../data/scanning/squareScanning3D_21by4.mat'],'dPos_mm');
+save([pie.cAppPath,'/../../data/scanning/roundSmallCircle_r0.03_angle10.204.mat'],'dPos_mm');

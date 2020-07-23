@@ -1,7 +1,7 @@
 %% this script is used to reconstruct the phase from QWLSI images
 
 % load aerialImages
-method = 'random' ;
+method = 'fourier' ;
 if ~strcmp(method,'fourier2D' )
     Nshift = length(aerialImages);
     N = length(aerialImages{1});
@@ -17,6 +17,17 @@ if ~strcmp(method,'fourier2D' )
         Iys(i,:) = aerialImages{i+Nshift/2}(:);
     end
 end
+
+%% try ideal phase shifting
+% shifts = linspace(0,2*pi-pi/nInt,nInt/2);
+% for i= 1:nInt/2
+%     ENx = circshift(EN*exp(1i*shifts(i)),[0,spN])+circshift(EN*exp(-1i*shifts(i)),[0,-spN])+circshift(EN,[spN,0])+circshift(EN,[-spN,0]);
+%     Ix(:,:,i) = abs(ENx).^2;
+%     Ixs(i,:) =abs(ENx(:)).^2;
+%     ENy = circshift(EN,[0,spN])+circshift(EN,[0,-spN])+circshift(EN*exp(1i*shifts(i)),[spN,0])+circshift(EN*exp(-1i*shifts(i)),[-spN,0]);
+%     Iy(:,:,i) = abs(ENy).^2;
+%     Iys(i,:) =abs(ENx(:)).^2;
+% end
 %% phase extraction
 
 switch method
@@ -26,6 +37,8 @@ switch method
         [dWys,deltaY] = PIE.utils.RandomShift(Iys,delta,50);
         deltaX = deltaX/pi*180;
         deltaY = deltaY/pi*180;
+        unwrapX = unwrap(deltaX/180*pi)/2/pi;
+        unwrapX = unwrapX-unwrapX(1)
         dWxUnwrapped = reshape(dWxs,N,N);
         dWyUnwrapped = reshape(dWys,N,N);
     case 'PSI'
@@ -35,8 +48,8 @@ switch method
     case 'fourier'
         xft = (fft(Ix, [], 3));
         yft = (fft(Iy, [], 3));
-        dWxUnwrapped =  angle(xft(:,:,2));
-        dWyUnwrapped =  angle(yft(:,:,2));
+        dWxUnwrapped =  angle(xft(:,:,3));
+        dWyUnwrapped =  angle(yft(:,:,3));
     case 'fourier2D'
         Nshift = sqrt(length(aerialImages));
         Ix = zeros(N,N,Nshift);
@@ -57,13 +70,16 @@ dWx=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWxUnwrapped,255*ones(N));
 dWy=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWyUnwrapped,255*ones(N));
 
 %% phase reconstruction
-scale =4;
+scale = 4;
 sp  = shearPercentage*det0_um/det_um/scale;
-dZ =PIE.utils.Retrieve_LP_iteration(dWx/2/pi,dWy/2/pi, sp, sp,ones(N))/scale;
+% spN = sp*N*2;
+% dWxs = circshift(Ex_phaN*2*pi,[0,spN])-circshift(Ex_phaN*2*pi,[0,-spN]);
+% dWys = circshift(Ex_phaN*2*pi,[spN,0])-circshift(Ex_phaN*2*pi,[-spN,0]);
+dZ =PIE.utils.Retrieve_LP_iteration(dWx/2/pi,dWx'/2/pi, sp, sp,ones(N))/scale;
 dZs = PIE.utils.DelTilt(dZ);
 
 %% plot
-figure(5),imagesc(dWy);colorbar;
+figure(5),imagesc(dWx);colorbar;
 figure(2),imagesc(dZs);colorbar;
 figure(3),imagesc(Ex_phaN);colorbar;
 figure(4),imagesc(dZs-Ex_phaN);colorbar;

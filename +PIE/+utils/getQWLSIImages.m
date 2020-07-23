@@ -7,15 +7,17 @@ kmax=pi/dc_um;
 [kxm,kym] =meshgrid(linspace(-kmax,kmax,N));
 kzm = sqrt(k0^2-(kxm/NA*NAo).^2-(kym/NA*NAo).^2);
 CTF = (((kxm-offset).^2+kym.^2)<cutoff^2);
+%  CTF(CTF==0)=1;
 defocus_pha = exp(1i.*df_um.*real(kzm)).*exp(-abs(df_um).*abs(imag(kzm)));
 s = lambda_um/T_um*z_um; 
-QWLSI = exp(1i.*kxm*s)+exp(-1i.*kxm*s)+exp(1i.*kym*s)+exp(-1i.*kym*s);
-pupil = CTF.*defocus_pha.*QWLSI;
+QWLSI = (exp(1i.*kxm*s)+exp(-1i.*kxm*s))+(exp(1i.*kym*s)+exp(-1i.*kym*s)); % two waves seems better
+pupil = CTF.*defocus_pha.*QWLSI/4;
 spectrum =  PIE.utils.Propagate (E,'fourier',do_um,lambda_um,-1);
 % imagesc(abs(spectrum));pause(1)
 spectrum = crop2(spectrum,N,N).*pupil;
 %   imagesc(log(abs(spectrum)));pause(1)
 Es =  PIE.utils.Propagate (spectrum,'fourier',do_um,lambda_um,1);
+
 % ang = angle(Es);imagesc(ang),pause(1)
 aerialImages = abs(Es).^2;
 

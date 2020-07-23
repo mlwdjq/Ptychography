@@ -25,7 +25,7 @@ method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
-pitch_nm = L_nm/4/1.882; % feature size
+pitch_nm = 400;%L_nm/4/1.882; % feature size
 dx_nm =L_nm/N;% grid size dx/dy nm
 shearPercentage  = 0.01;
 det0_um = 5e3; % real detector size
@@ -57,8 +57,8 @@ loadSetup(setupFile);
 PIE.utils.setParameters(para,saveConfig,setupFile);
 
 %% set illumination
-theta_2pi = T_um/2/Lo_um;
-Nshift = 5;
+theta_2pi = T_um/2/Lo_um*2;
+Nshift = 10;
 deltaTheta = theta_2pi/Nshift;
 thetaX = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
 thetaY = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
@@ -97,7 +97,7 @@ if removeTilt ==1
     setVariableValues( 'theta',offsetAngle);%
     setVariableValues( 'phi',-90);%
     setVariableValues( 'pitch',0);%
-    [~,~,~,Ex_amp0,Ex_pha0,Ey_amp0,Ey_pha0] = PIE.utils.runSimulator(polarDire,'KirchhoffThin');
+    [~,~,~,Ex_amp0,Ex_pha0,Ey_amp0,Ey_pha0] = PIE.utils.runSimulator(polarDire,method);
     offsetAngle = 0;
 else
     Ex_pha0 = 0;
@@ -115,10 +115,14 @@ for i=1: nInt
     end
     Ex = Ex_amp(:,:,i).*exp(1i*Ex_pha(:,:,i))./exp(1i*Ex_pha0);
     Ey = Ey_amp(:,:,i).*exp(1i*Ey_pha(:,:,i))./exp(1i*Ey_pha0);
+%     Ey0 = Ey./abs(Ey);
+%     Ey0(abs(Ey)<0.6) = 0.5*Ey0(abs(Ey)<0.6);
+%     Ey0(abs(Ey)>0.6) = 0.8*Ey0(abs(Ey)>0.6);
     aerialImagesx =  PIE.utils.getQWLSIImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
     aerialImagesy =  PIE.utils.getQWLSIImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
-    aerialImages{i}= aerialImagesx+aerialImagesy;
+    aerialImages{i}= aerialImagesx + aerialImagesy;
             imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
+%             abs(Ey(100,100))
     if max(max(abs(aerialImages{i})))>maxInt
         maxInt = max(max(aerialImages{i}));
     end
