@@ -91,7 +91,7 @@ figure(3),imagesc(xy,xy,Ex_phaNs);colorbar;axis tight equal
 colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);
 residual = dZs-Ex_phaN;
 residual =residual -mean(residual(:));
-%  residual(abs(residual)>5*std(residual(:)))=0;
+residual(abs(residual)>3*std(re))=0;
 figure(4),imagesc(xy,xy,residual);colorbar;axis tight equal
 colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);
 %

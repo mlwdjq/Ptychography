@@ -21,7 +21,7 @@ offsetAngle = 6;
 removeTilt =1;
 domain_nm = 450; % near field z
 t_abs_nm =56; % absorber thickness
-method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
+method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
@@ -33,8 +33,8 @@ T_um =  lambda_um./(shearPercentage*det0_um/Li_um/2);
 polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
 
 saveConfig = 1; % save configuration
-saveData = 0; % save data
-saveImage = 0;
+saveData = 1; % save data
+saveImage = 1;
 normalIncidence = 0;% normal incident only
 filename = 'normalIncidence.mat';
 
@@ -141,7 +141,8 @@ Ex_phaN = angle(EN)/2/pi;
 
 %% save data
 if saveData==1
-    save(dataFile, 'para','Ex_amp','Ey_amp','Ex_pha','Ey_pha', 'theta', 'phi','aerialImages');
+    save(dataFile, 'para','Ex_amp','Ey_amp','Ex_pha','Ey_pha',...
+        'Ex_amp0','Ex_pha0','Ey_amp0','Ey_pha0', 'Ex_phaN','Ey_phaN','theta', 'phi','aerialImages');
 end
 %% save images
 if saveImage == 1
