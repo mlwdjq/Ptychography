@@ -1,3 +1,4 @@
+
 %% EUV mask data
 data1=load('aerial-images_2020-07-23 14.26.54.mat');
 data2=load('aerial-images_2020-07-23 15.31.23.mat');
@@ -51,3 +52,4 @@ h=plot(atand(thetaY),amp(11:20),'-o');box on
 set(h,'lineWidth',2),
 xlabel('Scanning angles/degree'),%ylabel('Scanning angle \theta_y');
 ylabel('Intensity');set(gca,'fontSize',14);
+
