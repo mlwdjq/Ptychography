@@ -1,5 +1,15 @@
 %% this script is used to simulate quadriwave LSI images from EUV mask
-
+try
+    if ~exist('pie')||~ishandle(pie.hFigure)
+        launch_PIE;
+        msgbox('Please change PIE paras setup and run again');
+        return;
+    end
+catch
+    launch_PIE;
+    msgbox('Please change PIE paras setup and run again');
+    return;
+end
 %% simulation parameters
 % basically unchanged parameters
 apiPath = 'C:\Program Files\Panoramic\v700';
