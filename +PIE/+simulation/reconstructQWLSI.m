@@ -75,7 +75,7 @@ sp  = shearPercentage*det0_um/det_um/scale;
 % spN = sp*N*2;
 % dWxs = circshift(Ex_phaN*2*pi,[0,spN])-circshift(Ex_phaN*2*pi,[0,-spN]);
 % dWys = circshift(Ex_phaN*2*pi,[spN,0])-circshift(Ex_phaN*2*pi,[-spN,0]);
-dZ =PIE.utils.Retrieve_LP_iteration(dWx/2/pi,dWx'/2/pi, sp, sp,ones(N))/scale;
+dZ =PIE.utils.Retrieve_LP_iteration(dWx/2/pi,dWy/2/pi, sp, sp,ones(N))/scale;
 dZs = PIE.utils.DelTilt(dZ);
 
 %% plot
