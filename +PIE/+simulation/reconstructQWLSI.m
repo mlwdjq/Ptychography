@@ -1,5 +1,5 @@
 %% this script is used to reconstruct the phase from QWLSI images
-
+ 
 % load aerialImages
 method = 'fourier' ;
 if ~strcmp(method,'fourier2D' )
@@ -17,7 +17,7 @@ if ~strcmp(method,'fourier2D' )
         Iys(i,:) = aerialImages{i+Nshift/2}(:);
     end
 end
-
+ 
 %% try ideal phase shifting
 % shifts = linspace(0,2*pi-pi/nInt,nInt/2);
 % for i= 1:nInt/2
@@ -29,7 +29,7 @@ end
 %     Iys(i,:) =abs(ENx(:)).^2;
 % end
 %% phase extraction
-
+ 
 switch method
     case 'random'
         delta = 0:2*pi/Nshift*2:2*pi-2*pi/Nshift*2;
@@ -68,7 +68,7 @@ end
 % phase unwrap
 dWx=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWxUnwrapped,255*ones(N));
 dWy=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWyUnwrapped,255*ones(N));
-
+ 
 %% phase reconstruction
 scale = 2;
 sp  = shearPercentage*det0_um/det_um/scale;
@@ -76,22 +76,25 @@ sp  = shearPercentage*det0_um/det_um/scale;
 % dWxs = circshift(Ex_phaN*2*pi,[0,spN])-circshift(Ex_phaN*2*pi,[0,-spN]);
 % dWys = circshift(Ex_phaN*2*pi,[spN,0])-circshift(Ex_phaN*2*pi,[-spN,0]);
 dZ =PIE.utils.Retrieve_LP_iteration(dWx/2/pi,dWy/2/pi, sp, sp,ones(N))/scale;
+% dZ = dZ +aber(:,:,1);
 dZs = PIE.utils.DelTilt(dZ);
-
+ 
 %% plot
 xy = linspace(-L_nm/2000,L_nm/2000,N);
 figure(5),imagesc(xy,xy,dWy/2/pi);axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Shearing phase');
 figure(2),imagesc(xy,xy,dZs);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Reconstructed phase');
 Ex_phaNs = Ex_phaN;
 % Ex_phaNs(Ex_phaNs<-0.15)=NaN;
 Ex_phaNs = Ex_phaNs-mean(Ex_phaNs(~isnan(Ex_phaNs)));
 figure(3),imagesc(xy,xy,Ex_phaNs);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Original phase');
 residual = dZs-Ex_phaN;
 residual =residual -mean(residual(:));
-%  residual(abs(residual)>5*std(residual(:)))=0;
+res_crop = residual(80:190,80:190);
+% std(res_crop(:))
+%    residual(abs(residual)>13*std(residual(:)))=0;
 figure(4),imagesc(xy,xy,residual);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Residual error');
 %
