@@ -3,14 +3,14 @@ if nargin <8
     detectorWave = PIE.utils.postPropagate (exitWave,propagator,H,preShift);
     correctedWave = detectorWave;
     for k=1:length(segs)
-        correctedWave(segs{k}==1) = sqrt(sqrtInt(segs{k}==1).^2./sum(abs(detectorWave(segs{k}==1)).^2)+eps).*detectorWave(segs{k}==1);
+        correctedWave(segs{k}==1) = sqrt(sqrtInt(segs{k}==1).^2./(sum(abs(detectorWave(segs{k}==1)).^2)+eps)).*detectorWave(segs{k}==1);
     end
     exitWaveNew = PIE.utils.postPropagate (correctedWave,propagator,Hm,preShift);
 else
     detectorWave = PIE.utils.Propagate(exitWave,propagator,dx,wavelength,z);
     correctedWave = detectorWave;
     for k=1:length(segs)
-        correctedWave(segs{k}==1) = sqrt(sqrtInt(segs{k}==1).^2./sum(abs(detectorWave(segs{k}==1)).^2)+eps).*detectorWave(segs{k}==1);
+        correctedWave(segs{k}==1) = sqrt(sqrtInt(segs{k}==1).^2./(sum(abs(detectorWave(segs{k}==1)).^2)+eps)).*detectorWave(segs{k}==1);
     end
     exitWaveNew = PIE.utils.Propagate(correctedWave,propagator,dx,wavelength,-z);
 end

@@ -84,7 +84,7 @@ classdef PIE_Analyze < mic.Base
         dCTF
         do_um
         dc_um
-        dMaxObjectLen = 2000;
+        dMaxObjectLen
         
         
         % pupil guides
@@ -1072,15 +1072,6 @@ classdef PIE_Analyze < mic.Base
                             L=max(K,L);
                         end
                     end
-                    if u8ModeId==1
-                        this.dMaxObjectLen = K;
-                    elseif K<this.dMaxObjectLen
-                        K = this.dMaxObjectLen;
-                        L = this.dMaxObjectLen;
-                    elseif K>this.dMaxObjectLen
-                        fprintf('Mode 1 wavelength needs to be the smallest!\n');
-                        return;
-                    end
                     if K>2000
                         fprintf('object sampling: %d, please adjust scanning range\n',K);
                         return;
@@ -1246,7 +1237,7 @@ classdef PIE_Analyze < mic.Base
                     
                 case this.uibShowMode
                     u8ModeId = this.uilSelectMode.getSelectedIndexes();
-                    this.uieLambda.set(this.dLambda_um(u8ModeId)*1e3);
+                    this.uieLamda.set(this.dLambda_um(u8ModeId));
                     switch this.uitgAxesDisplay.getSelectedTabName()
                         case 'Reconstruction'
                             % Plot wavefronts on phase tab
@@ -1489,12 +1480,9 @@ classdef PIE_Analyze < mic.Base
             end
             if u8ModeId==1
                 this.dMaxObjectLen = K;
-            elseif K<this.dMaxObjectLen
-                K = this.dMaxObjectLen;
-                L = this.dMaxObjectLen;
-            elseif K>this.dMaxObjectLen
-                fprintf('Mode 1 wavelength needs to be the smallest!\n');
-                return;
+            else
+                
+                
             end
             %             K = round(scanRange_um/this.do_um)+N;
             %             L = round(scanRange_um/this.do_um)+N; % size of object [K,L]
@@ -3029,8 +3017,8 @@ classdef PIE_Analyze < mic.Base
                             this.haZernikeDecomp.FontSize = 12;
                             this.haZernikeDecomp.XLabel.String = 'Iteration times';this.haZernikeDecomp.YLabel.String = 'Residual errors (log10)';
                         else
-%                             u8ModeId = this.uilSelectMode.getSelectedIndexes();
-                            object = this.dSelectedObject;
+                            u8ModeId = this.uilSelectMode.getSelectedIndexes();
+                            object = this.dSelectedObject(:,:,u8ModeId);
                             % %                             object = unwrap(unwrap(object,[],1),[],2);
                             %                             object=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(object,255*ones(size(object)));
                             [K,L] = size(object);

@@ -7,7 +7,7 @@ if modeNumber<=1
     end
     exitWave = reconBox.*dProbeRecon;
     [exitWaveNew,~,segInt] = PIE.utils.UpdateExitWaveSegs(exitWave,sqrtInt,segs,...
-        propagator,H,Hm,1);
+        propagator,H{1},Hm{1},1);
     tempProbe = dProbeRecon;
     denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;
     newReconBox = reconBox + alpha*conj(tempProbe).*(exitWaveNew-exitWave)./denomO;

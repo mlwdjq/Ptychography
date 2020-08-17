@@ -55,7 +55,7 @@ else
         end
         exitWave = reconBox.* dProbeRecon.*CTF;
         [exitWaveNew,detectorWave] = PIE.utils.UpdateExitWave(exitWave,sqrtInt,...
-            propagator,H,Hm,1);
+            propagator,H{1},Hm{1},1);
          exitWaveNew = exitWaveNew.*CTF;
         tempProbe = dProbeRecon;
         denomO = gamma*max(abs(tempProbe(:)).^2) + (1-gamma)*abs(tempProbe).^2;

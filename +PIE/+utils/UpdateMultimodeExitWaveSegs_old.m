@@ -8,8 +8,17 @@ if nargin <9
     end
     correctedWave = detectorWave;
     for k=1:length(segs)
-        correctedWave(repmat(segs{k}==1,1,1,modeNumber)) = sqrt(repmat(sqrtInt(segs{k}==1).^2,modeNumber,1)./...
-            (sum(abs(detectorWave(repmat(segs{k}==1,1,1,modeNumber))).^2)+eps)).*detectorWave(repmat(segs{k}==1,1,1,modeNumber));
+        temp = zeros(sum(segs{k}(:)),modeNumber);
+        for m=1:modeNumber
+             temp0 = detectorWave(:,:,m);
+             temp(:,m) = temp0(segs{k}==1);
+        end
+        temp2 = sqrt(sqrtInt(segs{k}==1).^2./(sum(sum(abs(temp).^2))+eps)).*temp;
+        for m=1:modeNumber
+             temp0 = correctedWave(:,:,m);
+             temp0(segs{k}==1) = temp2(:,m);
+             correctedWave(:,:,m) =temp0;
+        end
     end
     for m=1:modeNumber
         exitWaveNew(:,:,m) = PIE.utils.postPropagate (correctedWave(:,:,m),propagator,Hm{m},preShift);
@@ -20,8 +29,17 @@ else
     end
     correctedWave = detectorWave;
     for k=1:length(segs)
-        correctedWave(repmat(segs{k}==1,1,1,modeNumber)) = sqrt(repmat(sqrtInt(segs{k}==1).^2,modeNumber,1)./...
-            (sum(abs(detectorWave(repmat(segs{k}==1,1,1,modeNumber))).^2)+eps)).*detectorWave(repmat(segs{k}==1,1,1,modeNumber));
+        temp = zeros(sum(segs{k}(:)),modeNumber);
+        for m=1:modeNumber
+             temp0 = detectorWave(:,:,m);
+             temp(:,m) = temp0(segs{k}==1);
+        end
+        temp2 = sqrt(sqrtInt(segs{k}==1).^2./(sum(sum(abs(temp).^2))+eps)).*temp;
+        for m=1:modeNumber
+             temp0 = correctedWave(:,:,m);
+             temp0(segs{k}==1) = temp2(:,m);
+             correctedWave(:,:,m) =temp0;
+        end
     end
     for m=1:modeNumber
         exitWaveNew(:,:,m) = PIE.utils.Propagate(correctedWave(:,:,m),propagator,dx,wavelength(m),-z);
