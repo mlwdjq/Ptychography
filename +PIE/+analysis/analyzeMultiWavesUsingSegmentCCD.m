@@ -124,7 +124,7 @@ pie.uieAccuracy.set(0);
 pie.cb(pie.uibComputePhase);
 
 %% analysis
-pie.uilSelectMode.setSelectedIndexes(uint8(1));
+pie.uilSelectMode.setSelectedIndexes(uint8(6));
 
 pie.uipSelectObject.setSelectedIndex(uint8(12));
 pie.uipSelectRegion.setSelectedIndex(uint8(3));

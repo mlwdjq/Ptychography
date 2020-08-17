@@ -8,8 +8,9 @@ if nargin <9
     end
     correctedWave = detectorWave;
     for k=1:length(segs)
-        correctedWave(repmat(segs{k}==1,1,1,modeNumber)) = sqrt(repmat(sqrtInt(segs{k}==1).^2,modeNumber,1)./...
-            (sum(abs(detectorWave(repmat(segs{k}==1,1,1,modeNumber))).^2)+eps)).*detectorWave(repmat(segs{k}==1,1,1,modeNumber));
+        flag = repmat(segs{k}==1,1,1,modeNumber);
+        correctedWave(flag) = sqrt(repmat(sqrtInt(segs{k}==1).^2,modeNumber,1)./...
+            (sum(abs(detectorWave(flag)).^2)+eps)).*detectorWave(flag);
     end
     for m=1:modeNumber
         exitWaveNew(:,:,m) = PIE.utils.postPropagate (correctedWave(:,:,m),propagator,Hm{m},preShift);
