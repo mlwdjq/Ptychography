@@ -2111,7 +2111,7 @@ classdef PIE_Analyze < mic.Base
                 case 'Object amplitude difference'
                     this.dSelectedObject = abs(objectRecon)./mean(abs(objectRecon(this.dAnalysisMask==1))) - abs(objectOri)./mean(abs(objectOri(this.dAnalysisMask==1)));
                     if FP
-                        this.dUnit_mm = this.dc_um/1000/Magnification ;
+                        this.dUnit_mm = this.dc_um/1000/Magnification*N/length(objectRecon) ;
                     else
                         this.dUnit_mm = this.do_um(u8ModeId)/1000;
                     end
@@ -2126,7 +2126,7 @@ classdef PIE_Analyze < mic.Base
                     this.dSelectedObject =this.dSelectedObject- mean(mean(this.dSelectedObject));
                     %                     this.dSelectedObject =PIE.utils.DelTilt(this.dSelectedObject);
                     if FP
-                        this.dUnit_mm = this.dc_um/1000/Magnification ;
+                        this.dUnit_mm = this.dc_um/1000/Magnification*N/length(objectRecon) ;
                     else
                         this.dUnit_mm = this.do_um(u8ModeId)/1000;
                     end
