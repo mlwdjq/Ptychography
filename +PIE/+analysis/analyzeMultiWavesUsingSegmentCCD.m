@@ -14,30 +14,30 @@ end
 %% setup
 N = 96;
 NA = 0.0875;
+photon =10000;
+detSize_mm = 10;
+scanningRange_mm =0.0013888;
 pie.uieLambda.set(13.5);
 pie.uieNA.set(NA);
 pie.uieBinning.set(N);
-pie.uiez2.set(17);
-pie.uieDetSize.set(10);
-pie.uieScanRange.set(0.000459);
+pie.uiez2.set(56.9);
+pie.uieDetSize.set(detSize_mm);
+pie.uieScanRange.set(scanningRange_mm);
 pie.uieBinning.set(96);
 pie.uieGratTilt.set(0);
 pie.uieDetTilt.set(0);
 pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
-pie.uieNp.set(0);
-
-dLambda_nm = [16.33, 15.69, 15.09, 14.55, 14.04, 13.56,...
-    13.11, 12.07, 12.31, 11.94, 11.59];
-
-dInt = [6.08E-02, 1.34E-01, 2.44E-01, 3.95E-01, 6.50E-01, 1.00E+00,...
-    1.30E+00, 1.11E+00, 4.22E-01, 1.55E-01, 3.32E-02];
+pie.uieNp.set(photon);
+nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(2));
+dLambda_nm = [13.12, 13.56, 14.04];
+dInt = [0.0099, 1, 0.0113];
 dAmp = sqrt(dInt); % probe amp
-dLambda_nm = fliplr(dLambda_nm); % wavelength has to start from short to long 
-dAmp = fliplr(dAmp);
+% dLambda_nm = fliplr(dLambda_nm); % wavelength has to start from short to long 
+% dAmp = fliplr(dAmp);
 
 % dAmp=1;
-% dLambda_nm =13.5;
+% dLambda_nm =13.56;
 modeNumber = length(dLambda_nm);
 pie.uieModeNumber.set(modeNumber);
 
@@ -49,7 +49,7 @@ scanningDim = '2D';
 switch scanningDim
     case '2D'
         % perform 2D scanning
-        pie.uieScanSteps.set(21);
+        pie.uieScanSteps.set(nSteps);
         pie.cb(pie.uieScanSteps);
     case '3D'
         % perform 3D scanning
@@ -117,14 +117,14 @@ end
 pie.cb(pie.uibSimulatePO);
 
 %% reconstruct
-pie.uieAlpha.set(0.2);
-pie.uieBeta.set(0.02);
+pie.uieAlpha.set(0.5);
+pie.uieBeta.set(0.03);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
 pie.cb(pie.uibComputePhase);
 
 %% analysis
-pie.uilSelectMode.setSelectedIndexes(uint8(6));
+pie.uilSelectMode.setSelectedIndexes(uint8(2));
 
 pie.uipSelectObject.setSelectedIndex(uint8(12));
 pie.uipSelectRegion.setSelectedIndex(uint8(3));
@@ -136,7 +136,7 @@ x_um = pie.dUnit_mm*linspace(-L/2,L/2,L)*1000;
 y_um = pie.dUnit_mm*linspace(-K/2,K/2,K)*1000;
 resPh(pie.dAnalysisMask==0)=NaN;
 resPh =PIE.utils.DelTilt(resPh);
-RMS = std(resPh(pie.dAnalysisMask==1&~isnan(resPh)))
+RMS = std(resPh(pie.dAnalysisMask==1&~isnan(resPh)))/pi
 figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight;
 xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
 
