@@ -3031,8 +3031,8 @@ classdef PIE_Analyze < mic.Base
                         else
 %                             u8ModeId = this.uilSelectMode.getSelectedIndexes();
                             object = this.dSelectedObject;
-                            % %                             object = unwrap(unwrap(object,[],1),[],2);
-                            %                             object=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(object,255*ones(size(object)));
+%                                                         object = unwrap(unwrap(object,[],1),[],2);
+%                                                          object=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(object,255*ones(size(object)));
                             [K,L] = size(object);
                             x_mm = this.dUnit_mm*linspace(-L/2,L/2,L);
                             y_mm = this.dUnit_mm*linspace(-K/2,K/2,K);
@@ -3045,6 +3045,7 @@ classdef PIE_Analyze < mic.Base
                                 imagesc(this.haAnalysis, x_mm,y_mm,object);colorbar(this.haAnalysis);axis(this.haAnalysis,'xy');
                                 this.haAnalysis.Title.String = selectedObject; this.haAnalysis.XLabel.String = 'x/mm';this.haAnalysis.YLabel.String = 'y/mm';
                             else
+                              
                                 object(this.dAnalysisMask==0)=NaN;
                                 object =PIE.utils.DelTilt(object);
                                 RMSStr = ['RMS(rad): ',num2str(std(object(this.dAnalysisMask==1&~isnan(object))))];
@@ -3056,7 +3057,7 @@ classdef PIE_Analyze < mic.Base
                                 nm=NM.Centroid;
                                 nn=round(nm(1))-round(K/2);
                                 mm=round(nm(2))-round(L/2);
-                                object = circshift(object,-[nn,mm]);
+%                                 object = circshift(object,-[nn,mm]);
                                 object = crop2(object,Nc,Nc);
                                 x_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;
                                 y_um = this.dUnit_mm*linspace(-Nc/2,Nc/2,Nc)*1000;

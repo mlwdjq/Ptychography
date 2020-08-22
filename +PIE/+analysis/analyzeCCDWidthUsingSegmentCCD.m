@@ -15,7 +15,7 @@ end
 N = 100;
 NA = 0.0875;
 photon =10000;
-detSize_mm = 10;
+detSize_mm = 30;
 scanningRange_mm =0.0013888;
 pie.uieLambda.set(13.56);
 pie.uieNA.set(NA);
@@ -80,7 +80,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact5_118.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact16_155.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -126,11 +126,10 @@ pie.uieAlpha.set(0.5);
 pie.uieBeta.set(0.03);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
+pie.uilSelectMode.setSelectedIndexes(uint8(2));
 pie.cb(pie.uibComputePhase);
 
 %% analysis
-pie.uilSelectMode.setSelectedIndexes(uint8(2));
-
 pie.uipSelectObject.setSelectedIndex(uint8(12));
 pie.uipSelectRegion.setSelectedIndex(uint8(3));
 pie.uieSigma.set(3);

@@ -12,36 +12,38 @@ catch
 end
 
 %% setup
-N = 96;
+N = 100;
 NA = 0.0875;
 photon =10000;
-scanningRange =0.0004629;
-pie.uieLambda.set(13.5);
+detSize_mm = 15;
+scanningRange_mm =0.0013888;
+pie.uieLambda.set(13.56);
 pie.uieNA.set(NA);
 pie.uieBinning.set(N);
 pie.uiez2.set(56.9);
-pie.uieDetSize.set(10);
-pie.uieScanRange.set(scanningRange);
-pie.uieBinning.set(96);
+pie.uieDetSize.set(detSize_mm);
+pie.uieScanRange.set(scanningRange_mm);
 pie.uieGratTilt.set(0);
 pie.uieDetTilt.set(0);
 pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
-nSteps = round(scanningRange*1e3/pie.do_um);
+pie.uilSelectMode.setSelectedIndexes(uint8(1));
+pie.cb(pie.uieLambda);
+nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(1));
 dLambda_nm = [13.12, 13.56, 14.04];
 dInt = [0.0099, 1, 0.0113];
 dAmp = sqrt(dInt); % probe amp
 % dLambda_nm = fliplr(dLambda_nm); % wavelength has to start from short to long 
 % dAmp = fliplr(dAmp);
 
-dAmp=1;
-dLambda_nm =13.56;
+% dAmp=1;
+% dLambda_nm =13.56;
 modeNumber = length(dLambda_nm);
 pie.uieModeNumber.set(modeNumber);
 
 %% path for loading segment 
-pie.uieSegmentPath.set(fullfile(pie.cAppPath,  '..','+utils','segs32.mat'));
+pie.uieSegmentPath.set(fullfile(pie.cAppPath,  '..','+utils','segs100_2.mat'));
 
 %% load scanning position
 scanningDim = '2D';
@@ -78,7 +80,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact11_115.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact8_127.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -104,7 +106,11 @@ for u8ModeId = 1:modeNumber
     [sr,sc]= size(object);
     [p,q] = meshgrid(linspace(0,1,sc),linspace(0,1,sr));
     object = interp2(p,q,object,m,n,'nearest');
-    pie.dObject(:,:,u8ModeId) = object;
+    try
+        pie.dObject(:,:,u8ModeId) = object;
+    catch
+        pie.dObject = object;
+    end
     % Make phase tab active:
     pie.uitgAxesDisplay.selectTabByIndex(pie.U8PROBEOBJECT);
     % Plot wavefronts on phase tab
@@ -117,14 +123,13 @@ pie.cb(pie.uibSimulatePO);
 
 %% reconstruct
 pie.uieAlpha.set(0.5);
-pie.uieBeta.set(0.02);
+pie.uieBeta.set(0.03);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
+pie.uilSelectMode.setSelectedIndexes(uint8(2));
 pie.cb(pie.uibComputePhase);
 
 %% analysis
-pie.uilSelectMode.setSelectedIndexes(uint8(2));
-
 pie.uipSelectObject.setSelectedIndex(uint8(12));
 pie.uipSelectRegion.setSelectedIndex(uint8(3));
 pie.uieSigma.set(3);
@@ -136,6 +141,6 @@ y_um = pie.dUnit_mm*linspace(-K/2,K/2,K)*1000;
 resPh(pie.dAnalysisMask==0)=NaN;
 resPh =PIE.utils.DelTilt(resPh);
 RMS = std(resPh(pie.dAnalysisMask==1&~isnan(resPh)))/pi
-figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight;
-xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
+% figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight;
+% xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
 
