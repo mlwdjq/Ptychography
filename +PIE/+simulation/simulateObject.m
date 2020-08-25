@@ -82,7 +82,7 @@ object_amp = crop2(I2,128,128);
 figure, imagesc(object_phase)
 
 %% contact
-n = 16;
+n = 15;
 ns = 155;
 object_amp =(pad2(ones(n),ns,ns)+1)/2;
 object_phase = pad2(ones(n),ns,ns)*pi*0.8;
@@ -113,4 +113,4 @@ figure(2),imagesc(s),colorbar
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/contact16_155.mat','object');
+save('../../data/object/contact15_155.mat','object');

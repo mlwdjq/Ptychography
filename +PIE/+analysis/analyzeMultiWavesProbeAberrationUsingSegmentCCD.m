@@ -30,6 +30,7 @@ pie.uiez1.set(0);
 pie.uieNp.set(photon);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
 pie.cb(pie.uieLambda);
+pie.cb(pie.uieNA);
 nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(1));
 dLambda_nm = [13.12, 13.56, 14.04];
 dInt = [0.0099, 1, 0.0113];
@@ -61,7 +62,7 @@ switch scanningDim
         pie.uieScanRange.set(max(max(dPos_mm(:,1:2),[],1)-min(dPos_mm(:,1:2),[],1)));
 end
 
-
+coef0 = randn(21,1);% keep aberrations unchanged
 %% probe and object
 for u8ModeId = 1:modeNumber
     pie.uilSelectMode.setSelectedIndexes(uint8(u8ModeId));
@@ -72,7 +73,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     
     % load zernike aberrations
-    coef = [[4:24]',0.1*randn(21,1)*13.56/dLambda_nm(u8ModeId)];
+    coef = [[4:24]',0.1*coef0*13.56/dLambda_nm(u8ModeId)];
     pie.uieZrn.set(mat2str(coef));
 
     
@@ -83,7 +84,7 @@ for u8ModeId = 1:modeNumber
     
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact5_118.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','EUV mask.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -151,12 +152,21 @@ mask = pinhole(round(2*Rc_um/pie.dc_um),N,N);
 pupil = fftshift(fft2(fftshift(pie.dProbeRecon(:,:,2))));
 pupil0 = fftshift(fft2(fftshift(pie.dProbe(:,:,2))));
 phase = angle(pupil);
+% phase =  unwrap(unwrap(phase,[],1),[],2);
+phase=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(double(phase),255*mask);
 phase = phase.*mask/2/pi;
+phase(mask==0)=NaN;
+% phase = PIE.utils.DelTilt(phase);
 phase0 = angle(pupil0);
+phase0=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(double(phase0),255*mask);
 phase0 = phase0.*mask/2/pi;
+phase0(mask==0)=NaN;
+% phase0 = PIE.utils.DelTilt(phase0);
 res = (phase-phase0);
 res = res - mean(res(mask==1));
 rms = std(res(mask==1));
+res(abs(res)>6*rms)=NaN;
+rms = std(res(~isnan(res)))
 figure(4),imagesc(phase);colorbar; axis tight equal off;set(gca,'fontSize',14);
 figure(5),imagesc(phase0);colorbar; axis tight equal off;set(gca,'fontSize',14);
 figure(6),imagesc(res);colorbar; axis tight equal off;set(gca,'fontSize',14);
@@ -179,13 +189,14 @@ end
 dZrn0 = pinv(basis)*phase0(mask==1)/2/pi;
 dZrn = pinv(basis)*phase(mask==1)/2/pi;
 dZrnRes =dZrn-dZrn0;
-dZrnRes(1:4) =0;
-
-figure(3),h =plot(0:Nz,dZrn);xlabel('Zernike terms');ylabel('Residual errors/waves');
+% dZrnRes(1:4) =0;
+% dZrn(1:4) =0;
+% dZrn0(1:4) =0;
+figure(3),h =plot(0:Nz,dZrn);xlabel('Zernike terms');ylabel('Zernike coefficients /waves');
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
-figure(3),h =plot(0:Nz,dZrn0);xlabel('Zernike terms');ylabel('Residual errors/waves');
+figure(3),h =plot(0:Nz,dZrn0);xlabel('Zernike terms');ylabel('Zernike coefficients /waves');
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
-figure(3),h =plot(0:Nz,dZrnRes);xlabel('Zernike terms');ylabel('Residual errors/waves');
+figure(3),h =plot(0:Nz,dZrnRes);xlabel('Zernike terms');ylabel('Zernike coefficients /waves');
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
 
 
