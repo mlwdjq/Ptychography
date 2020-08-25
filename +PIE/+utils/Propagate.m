@@ -9,10 +9,10 @@ function output = Propagate (input,propagator,dx,wavelength,z)
 % output: the propagated wavefront
 % Setup matrices representing reciprocal space coordinates
 [ysize,xsize] = size(input);
-% x = -xsize/2:xsize/2 - 1;
-% y = -ysize/2:ysize/2 - 1;
-x = linspace(-xsize/2,xsize/2,xsize);
-y = linspace(-ysize/2,ysize/2,ysize);
+x = -xsize/2:xsize/2 - 1;
+y = -ysize/2:ysize/2 - 1;
+% x = linspace(-xsize/2,xsize/2,xsize);
+% y = linspace(-ysize/2,ysize/2,ysize);
 fx = x./(dx*xsize);
 fy = y./(ysize*dx);
 [fx,fy] = meshgrid(fx,fy);
