@@ -27,7 +27,7 @@ pie.uieGratTilt.set(0);
 pie.uieDetTilt.set(0);
 pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
-pie.uieNp.set(100);
+pie.uieNp.set(100);% 100, 400
 pie.cb(pie.uieNA);
 
 modeNumber = 1;
@@ -139,10 +139,15 @@ resPh(pie.dAnalysisMask==0)=NaN;
 resPh =PIE.utils.DelTilt(resPh);
 RMS = std(resPh(pie.dAnalysisMask==1&~isnan(resPh)))/pi
 figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight xy;
-xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
+xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);hold on;
+mask2 = zeros(size(resPh));
+rh =5;
+mask2(N/2+1+rh:N/4*3-rh,N/2+1+rh:N/4*3-rh)=1;
+avg = mean(resPh(mask2==1&~isnan(resPh)))/pi
+% imagesc(x_um,y_um,mask2);
 
 %% save aerial images
-saveImage =1;
+saveImage =0;
 dataFile = [pie.cAppPath,'\..\..\data\Aerial images\aerial-images_', regexprep(datestr(now, 31), ':', '.'),'.mat'];
 if saveImage == 1
     mkdir(dataFile(1:end-4));
