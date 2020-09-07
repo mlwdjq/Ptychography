@@ -69,9 +69,13 @@ PIE.utils.setParameters(para,saveConfig,setupFile);
 %% set illumination
 theta_2pi = T_um/2/Lo_um*2;
 Nshift = 10;
+angleUncertainty = 1e-3;
+angleError = angleUncertainty*randn(1,Nshift);
 deltaTheta = theta_2pi/Nshift;
 thetaX = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
 thetaY = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
+thetaX = thetaX+angleError;
+thetaY = thetaY+angleError;
 theta = [atand(tand(offsetAngle)+thetaX),atand(sqrt(tand(offsetAngle).^2+thetaY.^2))];
 phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),-thetaY)];
 % phi(phi==0)= 360;
@@ -131,6 +135,7 @@ for i=1: nInt
     aerialImagesx =  PIE.utils.getQWLSIImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
     aerialImagesy =  PIE.utils.getQWLSIImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,offsetAngle);
     aerialImages{i}= aerialImagesx + aerialImagesy;
+    
             imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
 %             abs(Ey(100,100))
     if max(max(abs(aerialImages{i})))>maxInt
