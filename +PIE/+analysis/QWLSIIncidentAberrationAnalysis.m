@@ -37,6 +37,7 @@ catch
 end
 %% generate aerial images
 method = 'TEMPESTpr2';
+dMaxPhoton =0;
 for i=1: nInt
     switch method
         case 'KirchhoffThin'
@@ -52,6 +53,14 @@ for i=1: nInt
     aerialImagesx =  PIE.utils.getQWLSIImages(Ex,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,0);
     aerialImagesy =  PIE.utils.getQWLSIImages(Ey,NAo,Lo_um,NAi,lambda_um,Li_um,dc_um,df_um,Nc,T_um,0);
     aerialImages{i}= aerialImagesx + aerialImagesy;
+    % photon noise
+    wInt = aerialImages{i};
+    if (dMaxPhoton > 0)
+        wInt = wInt * dMaxPhoton;
+        wInt = wInt + sqrt(wInt).*randn(size(wInt));
+        wInt = wInt / dMaxPhoton;
+        aerialImages{i} = wInt;
+    end
     %              imagesc(aerialImages{i}),axis xy; colorbar;pause(0.5);
 end
 

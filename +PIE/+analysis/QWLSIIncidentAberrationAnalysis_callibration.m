@@ -2,7 +2,7 @@
 
 
 %% load data
-load('aerial-images_2020-08-08 12.06.13-QWSLI-Null.mat');
+load('aerial-images_2020-09-08 08.04.46(QWLSI-Null2).mat');
 [N,~,nInt] = size(Ex_amp);
 
 %% define aberration
@@ -27,7 +27,7 @@ end
 aber0 = aber;
 for j = 1:length(aberAmp)
     %% load data
-    load('aerial-images_2020-08-08 12.06.13-QWSLI-Null.mat');
+    load('aerial-images_2020-09-08 08.04.46(QWLSI-Null2).mat');
 %     [N,~,nInt] = size(Ex_amp);
 aberAmp(j)
     aber = aber0*aberAmp(j);
@@ -38,7 +38,7 @@ aberAmp(j)
     dWy0 = dWy;
     
     %% load null test data
-    load('aerial-images_2020-07-24 09.02.45.mat');
+    load('aerial-images_2020-09-07 09.43.51(QWLSI)2.mat');
     PIE.analysis.QWLSIIncidentAberrationAnalysis;
     dWx1 = dWx;
     dWy1 = dWy;
@@ -68,14 +68,24 @@ aberAmp(j)
     residual = dZs-Ex_phaN;
     residual =residual -mean(residual(:));
     res_crop = residual(30:230,30:230);
-
+    
     RMS(j) = std(res_crop(:));
+    mask_abs = zeros(N);
+    mask_sub = zeros(N);
+    r_abs = 12;
+    r_abs2 = 25;
+    r_sub = 60;
+    shift = 26;
+    mask_abs(N/2-r_abs+1:N/2+r_abs,N/2-r_abs+1:N/2+r_abs)=1;
+    mask_sub(N/2-r_sub+1:N/2+r_sub,N/2-r_sub+1:N/2+r_sub)=1;
+    mask_sub(N/2-r_abs2+1:N/2+r_abs2,N/2-r_abs2+1:N/2+r_abs2)=0;
+    dWs_PS(j) = abs(mean(dZs(mask_sub==1))-mean(dZs(mask_abs==1))-0.346);
     
     %    residual(abs(residual)>13*std(residual(:)))=0;
     figure(4),imagesc(xy,xy,residual);colorbar;axis tight equal
     xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Residual error');
 end
-figure(6),h=plot(aberAmp,RMS);
-xlabel('RMS of input aberations / waves');ylabel('RMS / waves');set(gca,'fontSize',14);
+figure(6),h=plot(aberAmp,dWs_PS);
+xlabel('RMS of input aberations / waves');ylabel('Phase error / waves');set(gca,'fontSize',14);
 set(h,'lineWidth',2);
 

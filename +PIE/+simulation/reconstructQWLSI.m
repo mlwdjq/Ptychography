@@ -70,7 +70,7 @@ dWx=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWxUnwrapped,255*ones(N));
 dWy=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWyUnwrapped,255*ones(N));
  
 %% phase reconstruction
-scale = 2;
+scale = 100;% 2
 sp  = shearPercentage*det0_um/det_um/scale;
 % spN = sp*N*2;
 % dWxs = circshift(Ex_phaN*2*pi,[0,spN])-circshift(Ex_phaN*2*pi,[0,-spN]);
@@ -81,20 +81,34 @@ dZs = PIE.utils.DelTilt(dZ);
  
 %% plot
 xy = linspace(-L_nm/2000,L_nm/2000,N);
-figure(5),imagesc(xy,xy,dWy/2/pi);axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Shearing phase');
-figure(2),imagesc(xy,xy,dZs);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Reconstructed phase');
+figure(5),imagesc(xy,xy,dWy/2/pi);axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.5,0.5]);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Shearing phase');
+figure(2),imagesc(xy,xy,dZs);colorbar;axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.4,0.1]);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Reconstructed phase');
 Ex_phaNs = Ex_phaN;
 % Ex_phaNs(Ex_phaNs<-0.15)=NaN;
 Ex_phaNs = Ex_phaNs-mean(Ex_phaNs(~isnan(Ex_phaNs)));
-figure(3),imagesc(xy,xy,Ex_phaNs);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Original phase');
+figure(3),imagesc(xy,xy,Ex_phaNs);colorbar;axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.4,0.1]);
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Original phase');
 residual = dZs-Ex_phaN;
 residual =residual -mean(residual(:));
 res_crop = residual(80:190,80:190);
-% std(res_crop(:))
+ std(res_crop(:))
+mask_abs = zeros(N);
+mask_sub = zeros(N);
+r_abs = 12;
+r_abs2 = 25;
+r_sub = 60;
+shift = 26;
+mask_abs(N/2-r_abs+1:N/2+r_abs,N/2-r_abs+1:N/2+r_abs)=1;
+mask_sub(N/2-r_sub+1:N/2+r_sub,N/2-r_sub+1:N/2+r_sub)=1;
+mask_sub(N/2-r_abs2+1:N/2+r_abs2,N/2-r_abs2+1:N/2+r_abs2)=0;
+dW_PS = mean(dZs(mask_sub==1))-mean(dZs(mask_abs==1))
+dW0_PS = mean(Ex_phaNs(mask_sub==1))-mean(Ex_phaNs(mask_abs==1))
+dWx_PS = (mean(dWx(circshift(mask_abs,[0,-shift])==1))-mean(dWx(circshift(mask_abs,[0,shift])==1)))/2/2/pi;
+dWy_PS = (mean(dWy(circshift(mask_abs,[-shift,0])==1))-mean(dWy(circshift(mask_abs,[shift,0])==1)))/2/2/pi;
+dWxy_PS = (dWx_PS+dWy_PS)/2;
 %    residual(abs(residual)>13*std(residual(:)))=0;
 figure(4),imagesc(xy,xy,residual);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',14);title('Residual error');
+colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Residual error');
 %
