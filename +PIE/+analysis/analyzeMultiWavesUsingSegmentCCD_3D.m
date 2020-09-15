@@ -29,8 +29,11 @@ pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
+try
 pie.cb(pie.uieLambda);
 pie.cb(pie.uieNA);
+catch
+end
 nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(1));
 dLambda_nm = [13.12, 13.56, 14.04];
 dInt = [0.0099, 1, 0.0113];
@@ -127,10 +130,10 @@ pie.uieAlpha.set(0.5);
 pie.uieBeta.set(0.03);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
+pie.uilSelectMode.setSelectedIndexes(uint8(2));
 pie.cb(pie.uibComputePhase);
  
 %% analysis
-pie.uilSelectMode.setSelectedIndexes(uint8(2));
  
 pie.uipSelectObject.setSelectedIndex(uint8(4));
 pie.uipSelectRegion.setSelectedIndex(uint8(3));
@@ -142,8 +145,12 @@ x_um = pie.dUnit_mm*linspace(-L/2,L/2,L)*1000;
 y_um = pie.dUnit_mm*linspace(-K/2,K/2,K)*1000;
 resPh(pie.dAnalysisMask==0)=NaN;
 resPh =PIE.utils.DelTilt(resPh);
+phaseShift = (mean(resPh(pie.dAnalysisMask==1&~isnan(resPh)&angle(pie.dObject(:,:,2))~=0))-...
+    mean(resPh(pie.dAnalysisMask==1&~isnan(resPh)&angle(pie.dObject(:,:,2))==0)))/pi
 RMS = std(resPh(pie.dAnalysisMask==1&~isnan(resPh)))/pi
-figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight;
-xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
+% figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight;
+% xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
+% axis(pie.haAnalysis,[-inf,inf,-inf,inf,-inf,inf,-1.3,0.7]);
+axis(pie.haAnalysis,[-inf,inf,-inf,inf,-inf,inf,-1,2]);
  
 

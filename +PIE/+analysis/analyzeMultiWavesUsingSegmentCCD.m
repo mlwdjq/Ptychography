@@ -12,10 +12,10 @@ catch
 end
 
 %% setup
-N = 100;
+N = 100;% 96, 100
 NA = 0.0875;
 photon =10000;
-detSize_mm = 10;
+detSize_mm = 25;
 scanningRange_mm =0.0013888;
 pie.uieLambda.set(13.56);
 pie.uieNA.set(NA);
@@ -29,7 +29,11 @@ pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
+try
 pie.cb(pie.uieLambda);
+pie.cb(pie.uieNA);
+catch
+end
 nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(1));
 dLambda_nm = [13.12, 13.56, 14.04];
 dInt = [0.0099, 1, 0.0113];
@@ -80,7 +84,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact5_118.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','threeLine_4pixPitch_145.mat'); % 5_144, 5_118 contact5_118
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -118,6 +122,27 @@ for u8ModeId = 1:modeNumber
     drawnow;
     
 end
+%% get aerial image
+aerialImages_aber = 0;
+aerialImages0 = 0;
+L = length(pie.dObject(:,:,1));
+for j =1:length(dLambda_nm)
+    [aerialImages,Es] = PIE.utils.getAerialImages(pie.dObject(:,:,j),NA,3000,NA,dLambda_nm(j)/1000,3000,pie.do_um(j),0,L,0);
+    aerialImages0 = aerialImages*dInt(j)+aerialImages0;
+    pupil_ext = fftshift(fft2(fftshift(pad2(pie.dProbe(:,:,j),L,L))));
+    spectrum =  PIE.utils.Propagate (Es,'fourier',pie.dc_um,dLambda_nm(j)/1000,-1);
+    spectrum = spectrum.*pupil_ext;
+    E_aber =  PIE.utils.Propagate (spectrum,'fourier',pie.dc_um,dLambda_nm(j)/1000,1);
+    aerialImages_aber = aerialImages_aber+ abs(E_aber).^2;
+end
+L = 50;
+croppedAerial = crop2(aerialImages0,L,L);
+xo_um = linspace(-L/2,L/2,L)*pie.do_um(2); % object coordinates
+yo_um = linspace(-L/2,L/2,L)*pie.do_um(2); % object coordinates
+croppedAerial = croppedAerial./max(croppedAerial(:));
+figure(4),imagesc(xo_um,yo_um,croppedAerial),xlabel('um'),ylabel('um')
+axis equal tight; set(gca,'fontSize',14); colorbar;
+
 %% simulate patterns
 pie.cb(pie.uibSimulatePO);
 
@@ -126,14 +151,15 @@ pie.uieAlpha.set(0.5);
 pie.uieBeta.set(0.03);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
+pie.uilSelectMode.setSelectedIndexes(uint8(2));
 pie.cb(pie.uibComputePhase);
 
 %% analysis
-pie.uilSelectMode.setSelectedIndexes(uint8(2));
+% pie.uilSelectMode.setSelectedIndexes(uint8(2));
 
-pie.uipSelectObject.setSelectedIndex(uint8(12));
+pie.uipSelectObject.setSelectedIndex(uint8(3));
 pie.uipSelectRegion.setSelectedIndex(uint8(3));
-pie.uieSigma.set(3);
+pie.uieSigma.set(0);
 pie.cb(pie.uibAnalyze);
 resPh = pie.dSelectedObject;
 [K,L] = size(resPh);
@@ -141,7 +167,17 @@ x_um = pie.dUnit_mm*linspace(-L/2,L/2,L)*1000;
 y_um = pie.dUnit_mm*linspace(-K/2,K/2,K)*1000;
 resPh(pie.dAnalysisMask==0)=NaN;
 resPh =PIE.utils.DelTilt(resPh);
+phaseShift = (mean(resPh(pie.dAnalysisMask==1&~isnan(resPh)&angle(pie.dObject(:,:,2))~=0))-...
+    mean(resPh(pie.dAnalysisMask==1&~isnan(resPh)&angle(pie.dObject(:,:,2))==0)))/pi
 RMS = std(resPh(pie.dAnalysisMask==1&~isnan(resPh)))/pi
+
+axis(pie.haAnalysis,[-inf,inf,-inf,inf,-inf,inf,-1.3,0.7]);
+% axis(pie.haAnalysis,[-inf,inf,-inf,inf,-inf,inf,-1,2]);
 % figure(2), imagesc(x_um,y_um,resPh);colorbar;axis equal tight;
 % xlabel('x/um');ylabel('y/um'); set(gca,'fontSize',14);
-
+L = 50;
+recon = abs(pie.dObjectRecon(:,:,2)).^2;
+croppedRecon =  crop2(recon,L,L);
+croppedRecon = croppedRecon./max(croppedRecon(:));
+figure(5),imagesc(xo_um,yo_um,croppedRecon),xlabel('um'),ylabel('um')
+axis equal tight; set(gca,'fontSize',14); colorbar;
