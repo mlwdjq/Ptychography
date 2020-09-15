@@ -29,8 +29,11 @@ pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
-pie.cb(pie.uieLambda);
-pie.cb(pie.uieNA);
+try
+    pie.cb(pie.uieLambda);
+    pie.cb(pie.uieNA);
+catch
+end
 nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(1));
 dLambda_nm = [13.12, 13.56, 14.04];
 dInt = [0.0099, 1, 0.0113];
@@ -70,7 +73,9 @@ for u8ModeId = 1:modeNumber
     pie.uieLambda.set(dLambda_nm(u8ModeId));
     pie.uieProbeAmp.set(dAmp(u8ModeId));
     pie.uicbGuess.set(true);
+    pie.uieZrn.set('[]');
     pie.cb(pie.uibGenProbeObject);
+    
     
     % load zernike aberrations
     coef = [[4:24]',0.1*coef0*13.56/dLambda_nm(u8ModeId)];
@@ -84,7 +89,7 @@ for u8ModeId = 1:modeNumber
     
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','EUV mask.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contactArray_118.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -112,16 +117,39 @@ for u8ModeId = 1:modeNumber
     object = interp2(p,q,object,m,n,'nearest');
     try
         pie.dObject(:,:,u8ModeId) = object;
+        pie.dObjectGuess(:,:,u8ModeId) = object;
     catch
         pie.dObject = object;
+        pie.dObjectGuess = object;
     end
     % Make phase tab active:
     pie.uitgAxesDisplay.selectTabByIndex(pie.U8PROBEOBJECT);
     % Plot wavefronts on phase tab
+    pie.replot(pie.U8GUESS, []);
     pie.replot(pie.U8PROBEOBJECT, []);
     drawnow;
     
 end
+%% get aerial image
+aerialImages_aber = 0;
+aerialImages0 = 0;
+L = length(pie.dObject(:,:,1));
+for j =1:length(dLambda_nm)
+    [aerialImages,Es] = PIE.utils.getAerialImages(pie.dObject(:,:,j),NA,3000,NA,dLambda_nm(j)/1000,3000,pie.do_um(j),0,L,0);
+    aerialImages0 = aerialImages*dInt(j)+aerialImages0;
+    pupil_ext = fftshift(fft2(fftshift(pad2(pie.dProbe(:,:,j),L,L))));
+    spectrum =  PIE.utils.Propagate (Es,'fourier',pie.dc_um,dLambda_nm(j)/1000,-1);
+    spectrum = spectrum.*pupil_ext;
+    E_aber =  PIE.utils.Propagate (spectrum,'fourier',pie.dc_um,dLambda_nm(j)/1000,1);
+    aerialImages_aber = aerialImages_aber+ abs(E_aber).^2;
+end
+L = 50;
+croppedAerial = crop2(aerialImages_aber,L,L);
+croppedAerial =croppedAerial./max(croppedAerial(:));
+xo_um = linspace(-L/2,L/2,L)*pie.do_um(2); % object coordinates
+yo_um = linspace(-L/2,L/2,L)*pie.do_um(2); % object coordinates
+figure(4),imagesc(xo_um,yo_um,croppedAerial),xlabel('um'),ylabel('um')
+axis equal tight; set(gca,'fontSize',14); colorbar;
 %% simulate patterns
 pie.cb(pie.uibSimulatePO);
 
