@@ -24,6 +24,30 @@ end
 
 figure,mesh(object_amp);
 figure,mesh(object_phase);
+
+%% EUV amp mask
+object_amp = zeros(N);
+object_phase = zeros(N);
+sizeRange = 12:4:40;
+ampRange = 1;
+phaRange = 0;
+[posx,posy]= meshgrid(25:50:975);
+pos= [posx(:),posy(:)];
+m=1;
+for i =1:length(sizeRange)
+    for j =1:length(ampRange)
+        for k =1:length(phaRange)
+            object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=1;
+            
+%             object_phase(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=phaRange(k) ;
+            m = m+1;
+        end
+    end
+end
+ 
+figure,mesh(object_amp);
+% figure,mesh(object_phase);
+
 %% vaccum
 
 object_amp = ones(N);
