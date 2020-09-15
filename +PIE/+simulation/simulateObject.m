@@ -3,27 +3,42 @@
 N= 1000;
 
 %% EUV mask
-object_amp = ones(N);
+N = 118;
+object_amp = zeros(N);
+object_phase = zeros(N);
+[posx,posy]= meshgrid(53:6:65);
+sizeRange = [2,3,4,5,4,3,2,3,4];
+pos= [posx(:),posy(:)];
+for k =1:length(pos)
+    object_amp(pos(k,1)+[1:sizeRange(k)]-round(sizeRange(k)/2),...
+        pos(k,2)+[1:sizeRange(k)]-round(sizeRange(k)/2))=1;
+end
+
+figure,mesh(object_amp);
+% figure,mesh(object_phase);
+
+%% EUV amp mask
+object_amp = zeros(N);
 object_phase = zeros(N);
 sizeRange = 12:4:40;
-ampRange = 0:0.2:0.8;
-phaRange = 0:pi/6:1.5*pi;
+ampRange = 1;
+phaRange = 0;
 [posx,posy]= meshgrid(25:50:975);
 pos= [posx(:),posy(:)];
 m=1;
 for i =1:length(sizeRange)
     for j =1:length(ampRange)
         for k =1:length(phaRange)
-            object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=ampRange(j);
+            object_amp(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=1;
             
-            object_phase(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=phaRange(k) ;
+%             object_phase(pos(m,1)+[-sizeRange(i)/2:sizeRange(i)/2],pos(m,2)+[-sizeRange(i)/2:sizeRange(i)/2])=phaRange(k) ;
             m = m+1;
         end
     end
 end
 
 figure,mesh(object_amp);
-figure,mesh(object_phase);
+% figure,mesh(object_phase);
 %% vaccum
 
 object_amp = ones(N);
@@ -113,4 +128,4 @@ figure(2),imagesc(s),colorbar
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/contact15_155.mat','object');
+save('../../data/object/contactArray_118.mat','object');
