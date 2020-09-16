@@ -183,12 +183,12 @@ L = 1000;
 recon = pie.dObjectRecon(:,:,2);
 croppedRecon =  crop2(recon,Lc,Lc);
 croppedRecon = interpFFT(croppedRecon,L,L);
-croppedReconAerial = abs(croppedRecon).^2;
-croppedReconAerial = croppedReconAerial./max(croppedReconAerial(:));
+croppedReconAerial = abs(croppedRecon).^
+croppedRecon = croppedRecon./max(croppedRecon(:));
 
-figure(5),imagesc(xo_um,yo_um,croppedReconAerial),xlabel('um'),ylabel('um')
+figure(5),imagesc(xo_um,yo_um,croppedRecon),xlabel('um'),ylabel('um')
 axis equal tight; set(gca,'fontSize',14); colorbar;
 
 %% save data
-savePath = fullfile(pie.cAppPath,  '..',  '..','data','results',['segment-analysis_', regexprep(datestr(now, 31), ':', '.'),'.mat']);
+savePath = fullfile(pie.cAppPath,  '..',  '..','data','results',['segment-analysis_', regexprep(datestr(now, 31),'.mat']);
 save(savePath, 'pie','aerialImages0', 'aerialImages_aber','recon');
