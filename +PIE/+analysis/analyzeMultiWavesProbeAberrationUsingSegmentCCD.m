@@ -134,6 +134,8 @@ end
 aerialImages_aber = 0;
 aerialImages0 = 0;
 L = length(pie.dObject(:,:,1));
+Lc = 50;
+Ls = 1000;
 for j =1:length(dLambda_nm)
     [aerialImages,Es] = PIE.utils.getAerialImages(pie.dObject(:,:,j),NA,3000,NA,dLambda_nm(j)/1000,3000,pie.do_um(j),0,L,0);
     aerialImages0 = aerialImages*dInt(j)+aerialImages0;
@@ -141,14 +143,14 @@ for j =1:length(dLambda_nm)
     spectrum =  PIE.utils.Propagate (Es,'fourier',pie.dc_um,dLambda_nm(j)/1000,-1);
     spectrum = spectrum.*pupil_ext;
     E_aber =  PIE.utils.Propagate (spectrum,'fourier',pie.dc_um,dLambda_nm(j)/1000,1);
-    aerialImages_aber = aerialImages_aber+ abs(E_aber).^2;
+    croppedE = crop2(E_aber,Lc,Lc);
+    croppedE = interpFFT(croppedE,Ls,Ls);
+    aerialImages_aber = aerialImages_aber+ abs(croppedE).^2;
 end
-L = 50;
-croppedAerial = crop2(aerialImages_aber,L,L);
-croppedAerial =croppedAerial./max(croppedAerial(:));
-xo_um = linspace(-L/2,L/2,L)*pie.do_um(2); % object coordinates
-yo_um = linspace(-L/2,L/2,L)*pie.do_um(2); % object coordinates
-figure(4),imagesc(xo_um,yo_um,croppedAerial),xlabel('um'),ylabel('um')
+xo_um = linspace(-Ls/2,Ls/2,Ls)*pie.do_um(2)/Ls*Lc; % object coordinates
+yo_um = linspace(-Ls/2,Ls/2,Ls)*pie.do_um(2)/Ls*Lc; % object coordinates
+aerialImages_aber = aerialImages_aber./max(aerialImages_aber(:));
+figure(4),imagesc(xo_um,yo_um,aerialImages_aber),xlabel('um'),ylabel('um')
 axis equal tight; set(gca,'fontSize',14); colorbar;
 %% simulate patterns
 pie.cb(pie.uibSimulatePO);
@@ -226,5 +228,21 @@ figure(3),h =plot(0:Nz,dZrn0);xlabel('Zernike terms');ylabel('Zernike coefficien
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
 figure(3),h =plot(0:Nz,dZrnRes);xlabel('Zernike terms');ylabel('Zernike coefficients /waves');
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
+% plot corrected object aerial
+j=2;
+[aerialImages,Es] = PIE.utils.getAerialImages(pie.dObject(:,:,j),NA,3000,NA,dLambda_nm(j)/1000,3000,pie.do_um(j),0,L,0);
+aerialImages0 = aerialImages*dInt(j)+aerialImages0;
+pupil_ext = fftshift(fft2(fftshift(pad2(pupil./pupil0,L,L))));
+spectrum =  PIE.utils.Propagate (Es,'fourier',pie.dc_um,dLambda_nm(j)/1000,-1);
+spectrum = spectrum.*pupil_ext;
+E_aber =  PIE.utils.Propagate (spectrum,'fourier',pie.dc_um,dLambda_nm(j)/1000,1);
+croppedE = crop2(E_aber,Lc,Lc);
+croppedE = interpFFT(croppedE,Ls,Ls);
+aerialImages_res = abs(croppedE).^2;
+aerialImages_res = aerialImages_res./max(aerialImages_res(:));
+figure(4),imagesc(xo_um,yo_um,aerialImages_aber),xlabel('um'),ylabel('um')
+axis equal tight; set(gca,'fontSize',14); colorbar;
 
-
+%% save data
+savePath = fullfile(pie.cAppPath,  '..',  '..','data','results',['segment-analysis_', regexprep(datestr(now, 31), ':', '.'),'.mat']);
+save(savePath, 'pie','aerialImages0', 'aerialImages_aber','aerialImages_res','dZrn','dZrn0');
