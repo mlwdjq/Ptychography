@@ -1,7 +1,7 @@
 %% this script is used to reconstruct the phase from QWLSI images
  
 % load aerialImages
-method = 'fourier' ;
+method = 'DFT' ;
 if ~strcmp(method,'fourier2D' )
     Nshift = length(aerialImages);
     N = length(aerialImages{1});
@@ -64,6 +64,9 @@ switch method
         yft = (fft(Iy, [], 3));
         dWxUnwrapped =  angle(xft(:,:,2));
         dWyUnwrapped =  angle(yft(:,:,2));
+    case 'DFT'
+        dWxUnwrapped = PIE.utils.DFTforPhaseExtraction(Ix,PSx,2);
+        dWyUnwrapped = PIE.utils.DFTforPhaseExtraction(Iy,PSy,2);
 end
 % phase unwrap
 dWx=PIE.utils.UnwrapPhaseBySortingReliabilityWithMask(dWxUnwrapped,255*ones(N));

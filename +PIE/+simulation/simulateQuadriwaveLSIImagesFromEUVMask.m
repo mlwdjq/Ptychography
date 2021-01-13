@@ -67,7 +67,8 @@ loadSetup(setupFile);
 PIE.utils.setParameters(para,saveConfig,setupFile);
  
 %% set illumination
-theta_2pi = T_um/2/Lo_um*2;
+scannningFactor = 1; % 1 refers to 2 pi
+theta_2pi = T_um/2/Lo_um*2*scannningFactor;
 Nshift = 10;
 angleUncertainty = 1e-3;
 angleErrorX = angleUncertainty*randn(1,Nshift);
@@ -77,6 +78,8 @@ thetaX = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
 thetaY = [0:deltaTheta:theta_2pi-deltaTheta]-(theta_2pi-deltaTheta)/2;
 thetaX = thetaX+angleErrorX;
 thetaY = thetaY+angleErrorY;
+PSx = 2*pi*thetaX/theta_2pi*scannningFactor;
+PSy = 2*pi*thetaY/theta_2pi*scannningFactor;
 theta = [atand(tand(offsetAngle)+thetaX),atand(sqrt(tand(offsetAngle).^2+thetaY.^2))];
 phi = [-atan2d(tand(offsetAngle)+thetaX,0),-atan2d(tand(offsetAngle),-thetaY)];
 % phi(phi==0)= 360;
