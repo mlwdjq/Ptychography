@@ -1,4 +1,4 @@
-%% this script is used to simulate quadriwave LSI images from EUV mask
+%% this script is used to simulate quadriwave LSI images from EUV mask using 2D scanning
 
 %% simulation parameters
 % basically unchanged parameters
