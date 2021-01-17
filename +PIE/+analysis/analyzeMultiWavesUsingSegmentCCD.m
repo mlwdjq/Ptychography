@@ -15,7 +15,8 @@ end
 N = 100;% 96, 100
 NA = 0.0875;
 photon =10000;
-detSize_mm = 25;
+stageError_nm = 0;
+detSize_mm = 10;
 scanningRange_mm =0.0013888;
 pie.uieLambda.set(13.56);
 pie.uieNA.set(NA);
@@ -28,6 +29,7 @@ pie.uieDetTilt.set(0);
 pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
+pie.uiePhaseShiftingError.set(stageError_nm);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
 try
 pie.cb(pie.uieLambda);
@@ -84,7 +86,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','threeLine_4pixPitch_145.mat'); % 5_144, 5_118 contact5_118
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact5_118.mat'); % 5_144, 5_118 contact5_118 threeLine_4pixPitch_145.mat
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
