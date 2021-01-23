@@ -1,7 +1,10 @@
 function [sqrtInt,Em,measurements] = simulateDiffractionPattern(probe,object,...
-    segs,modeNumber,N,propagator,Rpix,H,preShift,do_um,lambda_um)
+    segs,modeNumber,N,propagator,Rpix,H,preShift,do_um,lambda_um,mask)
 %% simulate diffracted patterns
 Em = zeros(N,N,modeNumber);
+if isempty(mask)
+    mask = ones(N);
+end
 for m= 1:modeNumber
     reconBox = object(Rpix(m,1)+[1:N],Rpix(m,2)+[1:N],m);
     if size(Rpix,2)==3
@@ -12,7 +15,7 @@ for m= 1:modeNumber
     sqrtInt = single(abs(Em));
     measurements = sqrtInt.^2;
 end
-measurements = sum(measurements,3);
+measurements = sum(measurements,3).*mask;
 sqrtInt = sqrt(measurements);
 
 % segment

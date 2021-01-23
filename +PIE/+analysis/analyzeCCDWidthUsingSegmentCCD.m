@@ -15,7 +15,7 @@ end
 N = 100;
 NA = 0.0875;
 photon =10000;
-detSize_mm = 30;
+detSize_mm = 20;
 scanningRange_mm =0.0013888;
 pie.uieLambda.set(13.56);
 pie.uieNA.set(NA);
@@ -29,7 +29,13 @@ pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
-pie.cb(pie.uieLambda);
+pie.uipSelectMask.setSelectedIndex(uint8(4));
+pie.cb(pie.uipSelectMask);% anamorphic CCD 2:1
+try
+    pie.cb(pie.uieLambda);
+    pie.cb(pie.uieNA);
+catch
+end
 nSteps = 1+round(scanningRange_mm*1e3/pie.do_um(1));
 dLambda_nm = [13.12, 13.56, 14.04];
 dInt = [0.0099, 1, 0.0113];
@@ -80,7 +86,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact15_155.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contact10_136.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -118,6 +124,8 @@ for u8ModeId = 1:modeNumber
     drawnow;
     
 end
+
+
 %% simulate patterns
 pie.cb(pie.uibSimulatePO);
 

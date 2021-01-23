@@ -354,8 +354,9 @@ classdef PIE_Analyze < mic.Base
             this.uibSelectCenter    = mic.ui.common.Button('cText', 'Select center', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uibResetCenter     = mic.ui.common.Button('cText', 'Set default center', 'fhDirectCallback', @(src, evt)this.cb(src));
             this.uicbFourierPtychography = mic.ui.common.Checkbox('cLabel', 'Fourier ptychography',  'fhDirectCallback', @(src, evt)this.cb(src));
-            this.uipSelectMask      = mic.ui.common.Popup('cLabel', 'Select mask', 'ceOptions', {'Compute from det. geom.','Compute from MET5','Compute from eliptical geom.'}, ...
-                'fhDirectCallback',@(src, evt)this.cb(src), 'lShowLabel', true);
+            this.uipSelectMask      = mic.ui.common.Popup('cLabel', 'Select mask', 'ceOptions', {'Compute from det. geom.',...
+                'Compute from MET5','Compute from eliptical geom.','Compute from 2:1 CCD'}, 'fhDirectCallback',@(src, evt)this.cb(src), ...
+                'lShowLabel', true);
             this.uibLoadMask        = mic.ui.common.Button('cText', 'Load mask', 'fhDirectCallback', @(src, evt)this.cb(src));
             
             this.uieCCDCenter.set('[]');
@@ -696,6 +697,8 @@ classdef PIE_Analyze < mic.Base
                             this.computeMET5Mask();
                         case 3
                             this.computeElipticalMask();
+                        case 4
+                            this.computeCCDRatio2_1mask();
                     end
                     
                 case this.uibLoadMask
@@ -1881,10 +1884,12 @@ classdef PIE_Analyze < mic.Base
                                 else % normal rPIE without position calibration
                                     if ~isempty( this.ceSegments)
                                         [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.sPIE(this.dObjectRecon,this.dProbeRecon,...
-                                            sqrtInt(:,:,j),Iseg(:,j),mRpix(:,:,j),N,propagator,H,Hm,alpha,beta, gamma, tempError,modeNumber,this.ceSegments,this.do_um,this.dLambda_um);
+                                            sqrtInt(:,:,j),Iseg(:,j),mRpix(:,:,j),N,propagator,H,Hm,alpha,beta, gamma, tempError,modeNumber,...
+                                            this.ceSegments,this.do_um,this.dLambda_um);
                                     else
                                         [this.dObjectRecon,this.dProbeRecon,tempError] = PIE.utils.rPIE(this.dObjectRecon,this.dProbeRecon,...
-                                            sqrtInt(:,:,j),mRpix(:,:,j),N,propagator,H,Hm,alpha,beta, gamma, tempError, modeNumber,this.do_um,this.dLambda_um,FP,this.dCTF);
+                                            sqrtInt(:,:,j),mRpix(:,:,j),N,propagator,H,Hm,alpha,beta, gamma, tempError, modeNumber,...
+                                            this.do_um,this.dLambda_um,FP,this.dCTF,this.dAnalysisRegion);
                                     end
                                 end
                                 drawnow;
@@ -1933,7 +1938,11 @@ classdef PIE_Analyze < mic.Base
                             this.uieBeta.set(mean(abs(beta)));
                     end
                     % error evaluation
-                    errors(i) = sum(tempError(:))/totalI;
+                    if length(tempError) == length(this.dAnalysisRegion)
+                        errors(i) = sum(tempError(this.dAnalysisRegion==1))/totalI;
+                    else
+                        errors(i) = sum(tempError(:))/totalI;
+                    end
                     
                     iterationStr = sprintf('%d iterations finished,residual error: %0.5f',i,errors(i));
                     this.uitIteration.set(iterationStr);drawnow;
@@ -2348,6 +2357,20 @@ classdef PIE_Analyze < mic.Base
                 this.dObject = ones(KL);
             end
             
+            % load segment mask
+            if ~isempty(this.ceSegments)
+                segMask = zeros(length(this.ceSegments{1}));
+                for k=length(this.ceSegments):-1:1
+                    this.ceSegments{k} = this.ceSegments{k}.*this.dAnalysisRegion;
+                    segMask= segMask+this.ceSegments{k};
+                    if all(this.ceSegments{k}(:)==0)
+                        this.ceSegments(k) = [];
+                    end
+                end
+                %                 this.dAnalysisRegion=ones(length(segs{1}));
+                this.dAnalysisRegion(segMask==0)=0;
+            end
+            
             % load error sources
             dZDriftTotal = this.uieZLinearDrift.get() / 1000; % (um)
             dXDriftTotal = this.uieXLinearDrift.get() / 1000000; % (mm)
@@ -2411,7 +2434,7 @@ classdef PIE_Analyze < mic.Base
                         mPosShifts(j,:) = cePosShifts{j}(m,:);
                     end
                     sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe.*exp(1i*2*pi*dAdditionalPhase),...
-                        this.dObject,this.ceSegments,modeNumber,N,propagator,mPosShifts,H,1,this.do_um,this.dLambda_um);
+                        this.dObject,this.ceSegments,modeNumber,N,propagator,mPosShifts,H,1,this.do_um,this.dLambda_um,this.dAnalysisRegion);
                     %                     else
                     %                         [K,L] = size(this.dObject);
                     %                         xo_um = linspace(-L/2,L/2-1,L)*this.dc_um*N/L/this.uieMag.get(); % object coordinates
@@ -2458,7 +2481,7 @@ classdef PIE_Analyze < mic.Base
                 simInts =reshape(simInts,sqrt(nStep2),sqrt(nStep2));
                 
                 this.handleLoadData(simInts, {'sim'});
-                this.dAnalysisRegion(simInts{1,1}==0)=0;
+%                 this.dAnalysisRegion(simInts{1,1}==0)=0;
                 this.uipbExposureProgress(1);
                 drawnow
             else % Simulate a singe image:
@@ -2471,7 +2494,7 @@ classdef PIE_Analyze < mic.Base
                 dAdditionalPhase = dAirflow_Phase+dMSFR_Phase;
                 %
                 sqrtInt = PIE.utils.simulateDiffractionPattern(this.dProbe.*exp(1i*2*pi*dAdditionalPhase),this.dObject,...
-                    this.ceSegments,modeNumber,N,propagator,mPosShifts,H,1,this.do_um,this.dLambda_um);
+                    this.ceSegments,modeNumber,N,propagator,mPosShifts,H,1,this.do_um,this.dLambda_um,this.dAnalysisRegion);
                 % add systematic error
                 Int = sqrtInt.^2;
                 Int = PIE.utils.addSystematicError(Int,dMaxPhoton,s2s,dcFlare,this.ceSegments);
@@ -2483,19 +2506,11 @@ classdef PIE_Analyze < mic.Base
                     Int=(Int/max(Int(:))).^(1+dNonlinearity);
                 end
                 this.handleLoadData({Int}, {'sim'});
-                this.dAnalysisRegion(sqrtInt==0)=0;
+%                 this.dAnalysisRegion(sqrtInt==0)=0;
                 fprintf('Single image took %s\n', s2f(toc));
             end
             
-            % load segment mask
-            if ~isempty(this.ceSegments)
-                segMask = zeros(length(this.ceSegments{1}));
-                for k=1:length(this.ceSegments)
-                    segMask= segMask+this.ceSegments{k};
-                end
-                %                 this.dAnalysisRegion=ones(length(segs{1}));
-                this.dAnalysisRegion(segMask==0)=0;
-            end
+            
             
             % Set state:
             this.setState(this.U8STATE_DATA_LOADED);
@@ -2507,6 +2522,12 @@ classdef PIE_Analyze < mic.Base
                 % Need to recenter data
                 this.handleLoadData();
             end
+        end
+        
+        function computeCCDRatio2_1mask(this)
+            N           = this.uieRes.get();
+            this.dAnalysisRegion = zeros(N);
+            this.dAnalysisRegion(round(N*0.25)+1:round(N*0.75),:) = 1;
         end
         
         function computeDefaultMaskGeometry(this)
@@ -2780,6 +2801,8 @@ classdef PIE_Analyze < mic.Base
                     this.computeMET5Mask();
                 case 3
                     this.computeElipticalMask();
+                case 4
+                    this.computeCCDRatio2_1mask();
             end
             
             this.replot(this.U8DATA, dMetaFlags);
