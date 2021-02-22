@@ -10,7 +10,7 @@ NAi = sin(atan(Lo_um/Li_um*tan(asin(NAo)))); % imaging NA
 det_um = pie.uieDetSize.get()*1000; % detector size
 Nc = pie.uieRes.get(); % sampling
 dc_um = det_um/Nc; % detector size
-shearPercentage  = 0.01;
+shearPercentage  = 0.05;
 det0_um = 5e3; % real detector size
 L_nm = 1000*det_um/(NAo/NAi);
 T_um =  lambda_um./(shearPercentage*det0_um/Li_um/2);
@@ -20,7 +20,7 @@ try
 catch
     [N,~,nInt] = size(Ex_amp);
     Nz = 8;
-    [x,y] = meshgrid(linspace(-1.5,1.5,N));
+    [x,y] = meshgrid(linspace(-0.7,0.7,N));
     [th,r] = cart2pol(x,y);
     for k = 3:Nz
         afn = zgen([], k, 'fnr');

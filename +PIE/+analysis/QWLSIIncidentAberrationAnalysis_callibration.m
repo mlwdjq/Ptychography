@@ -9,10 +9,10 @@ load('aerial-images_2020-09-08 08.04.46(QWLSI-Null2).mat');
 noAber = 0;
 aberAmp = linspace(0,1,101);
 RMS = zeros(1, length(aberAmp));
-Nz = 15;
-[x,y] = meshgrid(linspace(-1.5,1.5,N));
+Nz = 16;
+[x,y] = meshgrid(linspace(-0.7,0.7,N));
 [th,r] = cart2pol(x,y);
-for k = 1:Nz
+for k =5:Nz
     afn = zgen([], k, 'fnr');
     temp=afn(r, th);
     Basis(:,k) = temp(:);
@@ -23,6 +23,7 @@ for i = 1:nInt
     dZrn = randn(Nz,1);
     temp = reshape(Basis*dZrn,N,N);
     aber(:,:,i) = temp./std(temp(:));
+%     figure(3),imagesc(aber(:,:,i));pause(1)
 end
 aber0 = aber;
 for j = 1:length(aberAmp)

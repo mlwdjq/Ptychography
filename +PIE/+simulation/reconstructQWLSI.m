@@ -1,7 +1,7 @@
 %% this script is used to reconstruct the phase from QWLSI images
  
 % load aerialImages
-method = 'DFT' ;
+method = 'fourier' ;
 if ~strcmp(method,'fourier2D' )
     Nshift = length(aerialImages);
     N = length(aerialImages{1});
@@ -84,15 +84,15 @@ dZs = PIE.utils.DelTilt(dZ);
  
 %% plot
 xy = linspace(-L_nm/2000,L_nm/2000,N);
-figure(5),imagesc(xy,xy,dWy/2/pi);axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.5,0.5]);
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Shearing phase');
-figure(2),imagesc(xy,xy,dZs);colorbar;axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.4,0.1]);
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Reconstructed phase');
+% figure(5),imagesc(xy,xy,dWy/2/pi);axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.5,0.5]);
+% colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Shearing phase');
+% figure(2),imagesc(xy,xy,dZs);colorbar;axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.4,0.1]);
+% colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Reconstructed phase');
 Ex_phaNs = Ex_phaN;
 % Ex_phaNs(Ex_phaNs<-0.15)=NaN;
 Ex_phaNs = Ex_phaNs-mean(Ex_phaNs(~isnan(Ex_phaNs)));
-figure(3),imagesc(xy,xy,Ex_phaNs);colorbar;axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.4,0.1]);
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Original phase');
+% figure(3),imagesc(xy,xy,Ex_phaNs);colorbar;axis tight equal;axis([-inf,inf,-inf,inf,-inf,inf,-0.4,0.1]);
+% colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Original phase');
 residual = dZs-Ex_phaN;
 residual =residual -mean(residual(:));
 res_crop = residual(80:190,80:190);
@@ -112,6 +112,6 @@ dWx_PS = (mean(dWx(circshift(mask_abs,[0,-shift])==1))-mean(dWx(circshift(mask_a
 dWy_PS = (mean(dWy(circshift(mask_abs,[-shift,0])==1))-mean(dWy(circshift(mask_abs,[shift,0])==1)))/2/2/pi;
 dWxy_PS = (dWx_PS+dWy_PS)/2;
 %    residual(abs(residual)>13*std(residual(:)))=0;
-figure(4),imagesc(xy,xy,residual);colorbar;axis tight equal
-colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Residual error');
+% figure(4),imagesc(xy,xy,residual);colorbar;axis tight equal
+% colorbar;xlabel('x/um');ylabel('y/mm');set(gca,'fontSize',16);title('Residual error');
 %
