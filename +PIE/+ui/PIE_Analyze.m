@@ -209,6 +209,7 @@ classdef PIE_Analyze < mic.Base
         uitSampling
         uieProbeOffset
         uieProbeAmp
+        uieProbeEllipticity
         uibCopyProbe
         uibSimulatePO
         
@@ -440,10 +441,13 @@ classdef PIE_Analyze < mic.Base
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uieProbeAmp       = mic.ui.common.Edit('cLabel', 'Probe amplitude', 'cType', 'd', ...
                 'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
+            this.uieProbeEllipticity       = mic.ui.common.Edit('cLabel', 'Probe ellipticity', 'cType', 'd', ...
+                'fhDirectCallback', @(src, evt)this.cb(src), 'lNotifyOnProgrammaticSet', false);
             this.uibSimulatePO   = mic.ui.common.Button('cText', 'Simulate', 'fhDirectCallback', @(src, evt)this.cb(src));
             
             this.uieProbeOffset.set('[]');
             this.uieProbeAmp.set(1);
+            this.uieProbeEllipticity.set(1);
             this.uipPropagator.setSelectedIndex(uint8(2));
             % Controls:Data:FPM
             this.uieNAo = mic.ui.common.Edit('cLabel', 'Object NA', 'cType', 'd', 'fhDirectCallback', @(src, evt)this.cb(src),'lNotifyOnProgrammaticSet', false);
@@ -1314,6 +1318,7 @@ classdef PIE_Analyze < mic.Base
             objectType = this.uipObjectType.getOptions{this.uipObjectType.getSelectedIndex()};
             probeOffset = eval(this.uieProbeOffset.get());
             probeAmp = this.uieProbeAmp.get();
+            probeEllipticity = this.uieProbeEllipticity.get();
             u8ModeId = this.uilSelectMode.getSelectedIndexes();
             modeNumber = this.uieModeNumber.get();
             initialGuess = this.uicbGuess.get();
@@ -1368,19 +1373,32 @@ classdef PIE_Analyze < mic.Base
                         samplingFactor_obj = lambda_um.*z_um/(N*this.dc_um*this.do_um(u8ModeId));
                         Rc_um = (z_um+df_um)*tan(asin(NA));
                         Rprobe_um = abs(df_um)*tan(asin(NA));
+                        Ellipticity = tan(asin(probeEllipticity*NA))/tan(asin(NA));
                         [n1,n2]=meshgrid(1:N);
                         n1 = n1-N/2-1;
                         n2 = n2-N/2-1;
                         Hs= exp(-1i*pi*df_um*this.dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));
                         CO = 1-pinhole(round(2*Rc_um/this.dc_um*CenterObstruction),N,N);
-                        probe = PIE.utils.Propagate (pinhole(round(2*Rc_um/this.dc_um),N,N).*CO.*Hs.*exp(1i*probe_pha),propagator,...
-                            this.do_um(u8ModeId),lambda_um,-df_um);
+                        if probeEllipticity ==1
+                            probe = PIE.utils.Propagate (pinhole(round(2*Rc_um/this.dc_um),N,N).*CO.*Hs.*exp(1i*probe_pha),propagator,...
+                                this.do_um(u8ModeId),lambda_um,-df_um);
+                        else
+                            probe = PIE.utils.Propagate (lsianalyze.utils.elipticalHole(round(2*Rc_um/this.dc_um),...
+                                round(2*Rc_um/this.dc_um*Ellipticity),N,N).*CO.*Hs.*exp(1i*probe_pha),propagator,...
+                                this.do_um(u8ModeId),lambda_um,-df_um);  
+                        end
                     case 'Plane wave'
                         Rprobe_um = Rc_um;
                         samplingFactor_obj = lambda_um.*abs(df_um)/(N*this.do_um(u8ModeId)*this.do_um(u8ModeId));
                         CO = 1-pinhole(round(2*Rprobe_um/this.dc_um*CenterObstruction),N,N);
-                        probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/this.do_um(u8ModeId)),N,N).*CO.*exp(1i*probe_pha),propagator,...
-                            this.do_um(u8ModeId),lambda_um,abs(df_um));
+                        if probeEllipticity ==1
+                            probe = PIE.utils.Propagate (pinhole(round(2*Rprobe_um/this.do_um(u8ModeId)),N,N).*CO.*exp(1i*probe_pha),propagator,...
+                                this.do_um(u8ModeId),lambda_um,abs(df_um));
+                        else
+                            probe = PIE.utils.Propagate (lsianalyze.utils.elipticalHol(round(2*Rprobe_um/this.do_um(u8ModeId)),...
+                                round(2*Rprobe_um*probeEllipticity/this.do_um(u8ModeId)),N,N).*CO.*exp(1i*probe_pha),propagator,...
+                                this.do_um(u8ModeId),lambda_um,abs(df_um));
+                        end
                     case 'From reconstruction'
                         probe = this.dProbeRecon;
                 end
@@ -1394,7 +1412,7 @@ classdef PIE_Analyze < mic.Base
                 [kxm,kym] =meshgrid(linspace(-kmax,kmax,N));
                 kr = sqrt(kxm.^2+kym.^2);
                 phi = atan2(kym,kxm);
-                this.dCTF = (kr<cutoff);
+                this.dCTF = (kxm.^2+(kym/probeEllipticity).^2<cutoff^2);
                 this.dCTF = circshift(this.dCTF,[probeOffset(2), probeOffset(1)]);
                 NAo = this.uieNAo.get();
                 kzm = sqrt(k0^2-(kxm/NA*NAo).^2-(kym/NA*NAo).^2);
@@ -1938,7 +1956,7 @@ classdef PIE_Analyze < mic.Base
                             this.uieBeta.set(mean(abs(beta)));
                     end
                     % error evaluation
-                    if length(tempError) == length(this.dAnalysisRegion)
+                    if length(tempError) == length(this.dAnalysisRegion(:))
                         errors(i) = sum(tempError(this.dAnalysisRegion==1))/totalI;
                     else
                         errors(i) = sum(tempError(:))/totalI;
@@ -2550,7 +2568,7 @@ classdef PIE_Analyze < mic.Base
             this.dObstructionWidthEstPx = (tan(asin(CenterObstruction*NA))*(z2_mm) * sr / (detSize));
             %remove lines
             this.dAnalysisRegion = ones(sr,sc);
-            this.dAnalysisRegion2=ones(sr,sc);
+            this.dAnalysisRegion2 = ones(sr,sc);
             
         end
         
@@ -3433,6 +3451,7 @@ classdef PIE_Analyze < mic.Base
             this.uitSampling.build (uitProbe, 430, 50+Offsetp, 120, 20);
             this.uieProbeOffset.build     (uitProbe, 10, 50+Offsetp, 100, 20);
             this.uieProbeAmp.build     (uitProbe, 120, 50+Offsetp, 100, 20);
+            this.uieProbeEllipticity.build     (uitProbe, 250, 50+Offsetp, 100, 20);
             this.uibSimulatePO.build   (uitProbe, 430, 130+Offsetp, 100, 20);
             
             % FPM

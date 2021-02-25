@@ -31,13 +31,13 @@ offsetAngle = 6;
 removeTilt =1;
 domain_nm = 450; % near field z
 t_abs_nm =56; % absorber thickness
-method ='TEMPESTpr2';% 'KirchhoffThin';TEMPESTpr2
+method ='KirchhoffThin';% 'KirchhoffThin';TEMPESTpr2
 dz_nm =1;% grid size dz nm
 % N = L_nm/dx_nm; % sampling
 L_nm = 1000*det_um/(NAo/NAi);
-pitch_nm = 400;%L_nm/4/1.882; % feature size
+pitch_nm = 0*400;%L_nm/4/1.882; % feature size
 dx_nm =L_nm/N;% grid size dx/dy nm
-shearPercentage  = 0.01;
+shearPercentage  = 0.05;
 det0_um = 5e3; % real detector size
 T_um =  lambda_um./(shearPercentage*det0_um/Li_um/2);
 polarDire = 0; % polarization dirction 0 for X-Polarized, 1 for Y-Polarized
@@ -68,7 +68,7 @@ PIE.utils.setParameters(para,saveConfig,setupFile);
  
 %% set illumination
 scannningFactor = 1; % 1 refers to 2 pi
-theta_2pi = T_um/2/Lo_um*2*scannningFactor;
+theta_2pi = T_um/Lo_um*scannningFactor;
 Nshift = 10;
 angleUncertainty = 1e-3;
 angleErrorX = angleUncertainty*randn(1,Nshift);

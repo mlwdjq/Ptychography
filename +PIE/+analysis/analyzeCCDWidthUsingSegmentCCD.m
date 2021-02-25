@@ -15,6 +15,7 @@ end
 N = 100;
 NA = 0.0875;
 photon =10000;
+stageError_nm = 0;
 detSize_mm = 20;
 scanningRange_mm =0.0013888;
 pie.uieLambda.set(13.56);
@@ -28,8 +29,9 @@ pie.uieDetTilt.set(0);
 pie.uieCenterObstruction.set(0);
 pie.uiez1.set(0);
 pie.uieNp.set(photon);
+pie.uiePhaseShiftingError.set(stageError_nm);
 pie.uilSelectMode.setSelectedIndexes(uint8(1));
-pie.uipSelectMask.setSelectedIndex(uint8(4));
+pie.uipSelectMask.setSelectedIndex(uint8(1));
 pie.cb(pie.uipSelectMask);% anamorphic CCD 2:1
 try
     pie.cb(pie.uieLambda);

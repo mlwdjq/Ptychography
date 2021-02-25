@@ -133,6 +133,22 @@ object_phase = zeros(ns);
 % object_phase=circshift(object_phase,[2,2]);
 figure(2),imagesc(object_amp)
 
+%% anamophic lines
+n = 1;
+ns = 136;
+object_amp =pad2(ones(8*n,n),ns,ns);
+object_amp = circshift(object_amp,[8 0])+circshift(object_amp,[8,-2]) +...
+    circshift(object_amp,[8,2])+circshift(object_amp,[8,-4]) + circshift(object_amp,[8,4]);
+n = 2;
+object_amp2 =pad2(ones(n,4*n),ns,ns);
+object_amp2 = circshift(object_amp2,[0 0])+circshift(object_amp2,[-4,0]) +...
+    circshift(object_amp2,[-8,0]);
+object_amp =object_amp +object_amp2;
+object_phase = zeros(ns);
+% object_amp=circshift(object_amp,[2,2]);
+% object_phase=circshift(object_phase,[2,2]);
+figure(2),imagesc(object_amp)
+
 %% pinhole
 n = 10;
 ns = 96;
@@ -156,4 +172,4 @@ figure(2),imagesc(s),colorbar
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/threeLine_4pixPitch_145.mat','object');
+save('../../data/object/anamorphicLine_136.mat','object');
