@@ -2554,10 +2554,16 @@ classdef PIE_Analyze < mic.Base
             z2_mm       = this.uiez2.get();
             z1_mm       = this.uiez1.get();
             NA          = this.uieNA.get();
+            N           = this.uieRes.get();
             detSize     = this.uieDetSize.get();
             dObsOffset = eval(this.uieObsOffset.get());
             CenterObstruction     = this.uieCenterObstruction.get();
-            [sr, sc]    = size(this.ceInt{1});
+            try
+                [sr, sc]    = size(this.ceInt{1});
+            catch
+                sr = N;
+                sc = N;
+            end
             
             if NA>0&&~this.uicbFourierPtychography.get()
                 this.dBeamWidthEstPx    = (tan(asin(NA))*(z2_mm) * sr / (detSize));
@@ -2580,7 +2586,12 @@ classdef PIE_Analyze < mic.Base
             NA          = this.uieNA.get();
             detSize     = this.uieDetSize.get();
             dObs     = this.uieCenterObstruction.get();
-            [sr, sc]    = size(this.ceInt{1});
+            try
+                [sr, sc]    = size(this.ceInt{1});
+            catch
+                sr = N;
+                sc = N;
+            end
             
             idx = linspace(-detSize/2, detSize/2, sr);
             [dX, dY] = meshgrid(idx);
@@ -2613,7 +2624,12 @@ classdef PIE_Analyze < mic.Base
             detSize     = this.uieDetSize.get();
             dObsOffset = eval(this.uieObsOffset.get());
             CenterObstruction     = this.uieCenterObstruction.get();
-            [sr, sc]    = size(this.ceInt{1});
+            try
+                [sr, sc]    = size(this.ceInt{1});
+            catch
+                sr = N;
+                sc = N;
+            end
             this.dBeamWidthEstPx    = (tan(asin(NA))*(z2_mm) * sr / (detSize));
             this.dShearPix          = (this.dBeamWidthEstPx - ...
                 (tan(asin(NA))*z1_mm+tan(asin(NA - lambda_um/T_um))*(z2_mm-z1_mm)) * sr / (detSize));
