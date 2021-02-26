@@ -163,10 +163,9 @@ dObject_upSampling{1} = pad2(dObject,2*N,N);
 dObject_upSampling{2} = pad2(dObjectRecon,2*N,N);
 
 for i = 1:2
-    
-    %% generate defocused aerial image
+    % generate defocused aerial image
     dObjectScale = dObject_upSampling{i};
-    df_um = 0.5;
+    df_um = 0;
     z_um       = pie.uiez2.get()*1000;
     Rc_um = (z_um+df_um)*tan(asin(NA));
     [n1,n2]=meshgrid(1:N);
@@ -174,16 +173,20 @@ for i = 1:2
     n2 = n2-N/2-1;
     lambda_um = dLambda_nm(2)/1000;
     dc_um = lambda_um*z_um/N/pie.do_um(2);
-    Hs= exp(-1i*pi*df_um*pie.dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));% defocus
+    Hs= exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));% defocus
     pupil = pinhole(round(2*Rc_um/dc_um),N,N).*Hs;
     spectrum =  PIE.utils.Propagate (dObjectScale,'fourier',pie.do_um(2),lambda_um,-1);
     spectrum = crop2(spectrum,N,N).*pupil;%imagesc(abs(spectrum));
     Ns = 10*N; % increase sampling
     spectrum = pad2(spectrum,Ns,Ns);
     Es =  PIE.utils.Propagate (spectrum,'fourier',pie.do_um(2),lambda_um,1);
-    x_um = linspace(-N/2,N/2,Ns)*pie.do_um(2);
     aerialImages = abs(Es).^2;
     aerialImages = mat2gray(aerialImages);
-    figure,imagesc(x_um,x_um,aerialImages);axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
+    aerialImagess{i} = aerialImages;
+    % crop for a better view
+    Nc = Ns/4;
+    x_um = linspace(-N/2,N/2,Nc)*pie.do_um(2)/4;
+    figure(i+1),imagesc(x_um,x_um,crop2(aerialImages,Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
     
 end
+figure(4),imagesc(x_um,x_um,crop2(aerialImagess{2}-aerialImagess{1},Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
