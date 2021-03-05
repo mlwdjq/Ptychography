@@ -17,7 +17,7 @@ NA = 0.55/4;
 NAy = 0.55/8;
 photon =10000;
 stageError_nm = 0;
-detSize_mm = 20;
+detSize_mm = 40;
 scanningRange_mm =0.0017418;
 pie.uieLambda.set(13.56);
 pie.uieNA.set(NA);
@@ -53,7 +53,7 @@ modeNumber = length(dLambda_nm);
 pie.uieModeNumber.set(modeNumber);
 
 %% path for loading segment 
-pie.uieSegmentPath.set(fullfile(pie.cAppPath,  '..','+utils','segs16e.mat'));
+pie.uieSegmentPath.set(fullfile(pie.cAppPath,  '..','+utils','segs16e_2.mat'));
 
 %% load scanning position
 scanningDim = '2D';
@@ -90,7 +90,7 @@ for u8ModeId = 1:modeNumber
     pie.cb(pie.uibGenProbeObject);
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','anamorphicLine_136.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','anamorphicLine_136_2.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -189,4 +189,30 @@ for i = 1:2
     figure(i+1),imagesc(x_um,x_um,crop2(aerialImages,Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
     
 end
-figure(4),imagesc(x_um,x_um,crop2(aerialImagess{2}-aerialImagess{1},Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
+% direction imaging
+dObjectScale = dObject;
+df_um = 0;
+z_um       = pie.uiez2.get()*1000;
+Rc_um = (z_um+df_um)*tan(asin(NA));
+[n1,n2]=meshgrid(1:N);
+n1 = n1-N/2-1;
+n2 = n2-N/2-1;
+lambda_um = dLambda_nm(2)/1000;
+dc_um = lambda_um*z_um/N/pie.do_um(2);
+Hs= exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));% defocus
+pupil = pinhole(round(2*Rc_um/dc_um),N,N).*Hs;
+spectrum =  PIE.utils.Propagate (dObjectScale,'fourier',pie.do_um(2),lambda_um,-1);
+spectrum = spectrum.*pupil;%imagesc(abs(spectrum));
+Ns = 10*N; % increase sampling
+spectrum = pad2(spectrum,Ns/2,Ns);
+Es =  PIE.utils.Propagate (spectrum,'fourier',pie.do_um(2),lambda_um,1);
+Es = pad2(Es,Ns,Ns);
+aerialImages = abs(Es).^2;
+aerialImages = mat2gray(aerialImages);
+aerialImagess{3} = aerialImages;
+% crop for a better view
+Nc = Ns/4;
+x_um = linspace(-N/2,N/2,Nc)*pie.do_um(2)/4;
+figure(4),imagesc(x_um,x_um,crop2(aerialImages,Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
+
+figure(5),imagesc(x_um,x_um,crop2(aerialImagess{2}-aerialImagess{1},Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;

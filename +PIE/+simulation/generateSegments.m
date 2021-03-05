@@ -2,7 +2,7 @@
 N = 96;
 Ns = 16;
 segs = cell(Ns,1);
-[x,y] = meshgrid(linspace(-1,1,N));
+[x,y] = meshgrid(linspace(-2,2,N));
 [th,r] = cart2pol(x,y);
 Ellipticity = tan(asin(0.55/8))/tan(asin(0.55/4));
 rs = [0.125,0.5625,1];
@@ -55,4 +55,4 @@ end
 segs = segs(:)';
 
 %% save data
-save('../+utils/segs16e.mat','segs');
+save('../+utils/segs16e_2.mat','segs');
