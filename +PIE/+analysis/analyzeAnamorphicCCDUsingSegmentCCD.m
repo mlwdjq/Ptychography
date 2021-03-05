@@ -135,7 +135,7 @@ pie.cb(pie.uibSimulatePO);
 
 %% reconstruct
 pie.uieAlpha.set(0.5);
-pie.uieBeta.set(0.03);
+pie.uieBeta.set(0.02);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
 pie.uilSelectMode.setSelectedIndexes(uint8(2));
@@ -165,7 +165,7 @@ dObject_upSampling{2} = pad2(dObjectRecon,2*N,N);
 for i = 1:2
     % generate defocused aerial image
     dObjectScale = dObject_upSampling{i};
-    df_um = 0;
+    df_um = 0.5;
     z_um       = pie.uiez2.get()*1000;
     Rc_um = (z_um+df_um)*tan(asin(NA));
     [n1,n2]=meshgrid(1:N);
@@ -186,21 +186,11 @@ for i = 1:2
     % crop for a better view
     Nc = Ns/4;
     x_um = linspace(-N/2,N/2,Nc)*pie.do_um(2)/4;
-    figure(i+1),imagesc(x_um,x_um,crop2(aerialImages,Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
+    figure(i+5),imagesc(x_um,x_um,crop2(aerialImages,Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
     
 end
 % direction imaging
-dObjectScale = dObject;
-df_um = 0;
-z_um       = pie.uiez2.get()*1000;
-Rc_um = (z_um+df_um)*tan(asin(NA));
-[n1,n2]=meshgrid(1:N);
-n1 = n1-N/2-1;
-n2 = n2-N/2-1;
-lambda_um = dLambda_nm(2)/1000;
-dc_um = lambda_um*z_um/N/pie.do_um(2);
-Hs= exp(-1i*pi*df_um*dc_um^2/lambda_um/z_um^2*(n1.^2+n2.^2));% defocus
-pupil = pinhole(round(2*Rc_um/dc_um),N,N).*Hs;
+dObjectScale = dObjectRecon;
 spectrum =  PIE.utils.Propagate (dObjectScale,'fourier',pie.do_um(2),lambda_um,-1);
 spectrum = spectrum.*pupil;%imagesc(abs(spectrum));
 Ns = 10*N; % increase sampling
@@ -215,4 +205,4 @@ Nc = Ns/4;
 x_um = linspace(-N/2,N/2,Nc)*pie.do_um(2)/4;
 figure(4),imagesc(x_um,x_um,crop2(aerialImages,Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
 
-figure(5),imagesc(x_um,x_um,crop2(aerialImagess{2}-aerialImagess{1},Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
+% figure(5),imagesc(x_um,x_um,crop2(aerialImagess{2}-aerialImagess{1},Nc,Nc));axis equal tight; xlabel('x/um');ylabel('y/um');colorbar;
