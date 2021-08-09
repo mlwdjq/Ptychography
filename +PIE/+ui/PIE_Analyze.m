@@ -2377,6 +2377,9 @@ classdef PIE_Analyze < mic.Base
             
             % load segment mask
             if ~isempty(this.ceSegments)
+                if length(this.ceSegments{1}) ~= length(this.dAnalysisRegion)
+                    this.dAnalysisRegion = ones(length(this.ceSegments{1}));
+                end
                 segMask = zeros(length(this.ceSegments{1}));
                 for k=length(this.ceSegments):-1:1
                     this.ceSegments{k} = this.ceSegments{k}.*this.dAnalysisRegion;

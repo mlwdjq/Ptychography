@@ -106,7 +106,7 @@ object_amp = crop2(I2,128,128);
 figure, imagesc(object_phase)
 
 %% contact array
-ns = 118;
+ns = 114;
 n = 2;
 object_amp1 =circshift((pad2(ones(n),ns,ns)+1)/2,[-6,-6])+circshift((pad2(ones(n),ns,ns)+1)/2,[6,-6]);
 n = 3;
@@ -115,10 +115,11 @@ object_amp2 =circshift((pad2(ones(n),ns,ns)+1)/2,[-6,0])+circshift((pad2(ones(n)
 n = 4;
 object_amp3 =circshift((pad2(ones(n),ns,ns)+1)/2,[0,0])+circshift((pad2(ones(n),ns,ns)+1)/2,[6,6])+circshift((pad2(ones(n),ns,ns)+1)/2,[-6,6]);
 n = 5;
-object_amp4 =circshift((pad2(ones(n),ns,ns)+1)/2,[0,0]);
-object_phase = pad2(ones(n),ns,ns)*pi*0.8;
-object_amp = object_amp3;
-
+object_amp4 =circshift((pad2(ones(n),ns,ns)+1)/2,[0,-7]);
+object_phase = zeros(ns);
+ object_amp = object_amp1+object_amp2+object_amp3+object_amp4;
+object_amp(object_amp==4.5)=0;
+object_amp(object_amp~=0)=1;
 figure(2),imagesc(object_amp)
 
 %% contact 
@@ -204,4 +205,4 @@ figure(2),imagesc(s),colorbar
 %% save object
 object = object_amp.*exp(1i*object_phase);
 % object = fftshift(object);
-save('../../data/object/contact_118.mat','object');
+save('../../data/object/contactArray_114.mat','object');

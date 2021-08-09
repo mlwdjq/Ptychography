@@ -12,7 +12,7 @@ catch
 end
 
 %% setup
-N = 100;
+N = 96;
 NA = 0.0875;
 photon =10000;
 detSize_mm = 10;
@@ -47,7 +47,7 @@ modeNumber = length(dLambda_nm);
 pie.uieModeNumber.set(modeNumber);
 
 %% path for loading segment 
-pie.uieSegmentPath.set(fullfile(pie.cAppPath,  '..','+utils','segs100_2.mat'));
+pie.uieSegmentPath.set(fullfile(pie.cAppPath,  '..','+utils','segs32.mat'));
 
 %% load scanning position
 scanningDim = '2D';
@@ -65,7 +65,7 @@ switch scanningDim
         pie.uieScanRange.set(max(max(dPos_mm(:,1:2),[],1)-min(dPos_mm(:,1:2),[],1)));
 end
 
-coef0 = randn(21,1);% keep aberrations unchanged
+%   coef0 = randn(21,1);% keep aberrations unchanged
 %% probe and object
 for u8ModeId = 1:modeNumber
     pie.uilSelectMode.setSelectedIndexes(uint8(u8ModeId));
@@ -89,7 +89,7 @@ for u8ModeId = 1:modeNumber
     
     % load object
     %     pie.cb(pie.uibLoadObject);
-    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contactArray_118.mat');
+    objname = fullfile(pie.cAppPath,  '..','..', 'data','object','contactArray_114.mat');
     load(objname);
     dPosShifts = round((pie.dPos_mm(:,1:2)-min(pie.dPos_mm(:,1:2),[],1))*1000/pie.do_um(u8ModeId));
     K = max(dPosShifts(:,1))+N;
@@ -150,13 +150,15 @@ end
 xo_um = linspace(-Ls/2,Ls/2,Ls)*pie.do_um(2)/Ls*Lc; % object coordinates
 yo_um = linspace(-Ls/2,Ls/2,Ls)*pie.do_um(2)/Ls*Lc; % object coordinates
 aerialImages_aber = aerialImages_aber./max(aerialImages_aber(:));
+croppedObj = crop2(abs(pie.dObject(:,:,2)),Lc,Lc);
 figure(4),imagesc(xo_um,yo_um,aerialImages_aber),xlabel('um'),ylabel('um')
 axis equal tight; set(gca,'fontSize',14); colorbar;
+
 %% simulate patterns
 pie.cb(pie.uibSimulatePO);
 
 %% reconstruct
-pie.uieAlpha.set(0.5);
+pie.uieAlpha.set(0.1);
 pie.uieBeta.set(0.03);
 pie.uieMaxIteration.set(200);
 pie.uieAccuracy.set(0);
@@ -197,9 +199,9 @@ res = res - mean(res(mask==1));
 rms = std(res(mask==1));
 res(abs(res)>6*rms)=NaN;
 rms = std(res(~isnan(res)))
-figure(4),imagesc(phase);colorbar; axis tight equal off;set(gca,'fontSize',14);
-figure(5),imagesc(phase0);colorbar; axis tight equal off;set(gca,'fontSize',14);
-figure(6),imagesc(res);colorbar; axis tight equal off;set(gca,'fontSize',14);
+figure(4),imagesc(phase);colorbar; axis tight equal off;set(gca,'fontSize',14); title('Reconstruction');
+figure(5),imagesc(phase0);colorbar; axis tight equal off;set(gca,'fontSize',14);title('Simulation');
+figure(6),imagesc(res);colorbar; axis tight equal off;set(gca,'fontSize',14);title('Residual error');
 
 % generate zernike basis
 Nz =24;
@@ -228,6 +230,7 @@ figure(3),h =plot(0:Nz,dZrn0);xlabel('Zernike terms');ylabel('Zernike coefficien
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
 figure(3),h =plot(0:Nz,dZrnRes);xlabel('Zernike terms');ylabel('Zernike coefficients /waves');
 set(h,'lineWidth',2);set(gca,'fontSize',14);hold on;
+legend('Recontruction','Simulation','Residual error')
 % plot corrected object aerial
 j=2;
 [aerialImages,Es] = PIE.utils.getAerialImages(pie.dObject(:,:,j),NA,3000,NA,dLambda_nm(j)/1000,3000,pie.do_um(j),0,L,0);
@@ -240,7 +243,8 @@ croppedE = crop2(E_aber,Lc,Lc);
 croppedE = interpFFT(croppedE,Ls,Ls);
 aerialImages_res = abs(croppedE).^2;
 aerialImages_res = aerialImages_res./max(aerialImages_res(:));
-figure(4),imagesc(xo_um,yo_um,aerialImages_aber),xlabel('um'),ylabel('um')
+
+figure(7),imagesc(xo_um,yo_um,aerialImages_aber),xlabel('um'),ylabel('um')
 axis equal tight; set(gca,'fontSize',14); colorbar;
 
 %% save data
