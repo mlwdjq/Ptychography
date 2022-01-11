@@ -192,7 +192,9 @@ end
 % direction imaging
 dObjectScale = dObjectRecon;
 spectrum =  PIE.utils.Propagate (dObjectScale,'fourier',pie.do_um(2),lambda_um,-1);
-spectrum = spectrum.*pupil;%imagesc(abs(spectrum));
+pupil2 = lsianalyze.utils.elipticalHole(round(2*Rc_um/dc_um),...
+    round(2*Rc_um/dc_um*tan(asin(NAy))/tan(asin(NA))),N,N).*Hs;
+spectrum = spectrum.*pupil2;%imagesc(abs(spectrum));
 Ns = 10*N; % increase sampling
 spectrum = pad2(spectrum,Ns/2,Ns);
 Es =  PIE.utils.Propagate (spectrum,'fourier',pie.do_um(2),lambda_um,1);
